@@ -1,0 +1,641 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<title>마우스야 놀자</title>
+<style>
+  html, body {
+    margin: 0; padding: 0; overflow: hidden;
+    width: 100%; height: 100%;
+    background: linear-gradient(to bottom, #87CEEB 0%, #B0E0E6 60%, #98D98E 60%, #7CC96F 100%);
+    font-family: 'Malgun Gothic', 'Apple SD Gothic Neo', sans-serif;
+    cursor: none;
+    user-select: none;
+  }
+  #gameCanvas {
+    display: block;
+    background: transparent;
+  }
+  #startScreen, #endScreen {
+    position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    background: radial-gradient(circle at center, #A8E0F5 0%, #6EC6FF 100%);
+    z-index: 10;
+    cursor: default;
+  }
+  #startScreen h1, #endScreen h1 {
+    font-size: clamp(42px, 4.2vw, 58px); color: #23445b; margin-bottom: 15px;
+    text-shadow: 3px 3px 0px #fff;
+  }
+  #startScreen p, #endScreen p {
+    font-family: inherit;
+  }
+  #nameInput {
+    font-size: clamp(26px, 2.6vw, 34px); padding: 15px 24px; border-radius: 20px;
+    border: 5px solid #2c3e50; text-align: center; width: 400px;
+    margin-bottom: 30px;
+    box-shadow: inset 0 2px 6px rgba(0,0,0,0.15);
+    outline: none;
+  }
+  #nameInput:focus {
+    border-color: #FF6B35;
+  }
+  .bigBtn {
+    font-size: clamp(28px, 2.8vw, 36px); padding: 18px 52px; border-radius: 36px;
+    border: none; background: linear-gradient(180deg, #FF8A5C 0%, #FF6B35 100%);
+    color: white; cursor: pointer;
+    box-shadow: 0 8px 0 #c1441e;
+    transition: transform 0.1s;
+    font-weight: bold;
+  }
+  .bigBtn:hover {
+    filter: brightness(1.05);
+  }
+  .bigBtn:active {
+    transform: translateY(8px);
+    box-shadow: 0 0px 0 #c1441e;
+  }
+  #welcomeMsg {
+    font-size: clamp(34px, 4vw, 48px); color: #b95319; margin-bottom: 30px;
+    text-align: center; font-weight: bold;
+    text-shadow: 2px 2px 0px #fff;
+  }
+  #finalScore {
+    font-size: clamp(68px, 7.5vw, 88px); color: #d96a25; margin: 15px 0;
+    text-shadow: 4px 4px 0px #fff;
+    font-weight: bold;
+  }
+  #hud {
+    position: absolute; top: 20px; left: 0; width: 100%;
+    display: flex; justify-content: space-between; padding: 0 40px;
+    box-sizing: border-box;
+    z-index: 5;
+    pointer-events: none;
+  }
+  #hud > div {
+    background: rgba(255,255,255,0.92);
+    padding: 12px 22px;
+    border: 2px solid rgba(255,255,255,0.95);
+    border-radius: 18px;
+    font-size: clamp(24px, 2.1vw, 30px);
+    font-weight: 900; color: #203e55;
+    box-shadow: 0 5px 14px rgba(0,0,0,0.16);
+    min-width: 150px;
+    text-align: center;
+  }
+  #scoreDisplay {
+    color: #e67e22 !important;
+  }
+  .hidden { display: none !important; }
+</style>
+</head>
+<body>
+
+<div id="startScreen">
+  <div style="font-size:70px; margin-bottom:10px;">🐦 🦉 🦆 🦜</div>
+  <h1>마우스야 놀자</h1>
+  <p style="font-size:26px; color:#2c3e50; margin-bottom:25px;">이름을 입력하고 시작 버튼을 눌러주세요</p>
+  <input type="text" id="nameInput" placeholder="이름을 입력하세요" maxlength="10">
+  <button class="bigBtn" id="startBtn">시작하기</button>
+</div>
+
+<div id="welcomeScreen" class="hidden" style="position:absolute; top:0; left:0; width:100%; height:100%; display:flex; flex-direction:column; align-items:center; justify-content:center; background:rgba(135,206,235,0.95); z-index:10;">
+  <div id="welcomeMsg"></div>
+  <p style="font-size:26px; color:#2c3e50;">잠시 후 게임이 시작됩니다...</p>
+</div>
+
+<div id="hud" class="hidden">
+  <div id="playerNameDisplay"></div>
+  <div id="timeDisplay">2:30</div>
+  <div id="scoreDisplay">점수: 0</div>
+</div>
+
+<div id="endScreen" class="hidden">
+  <div style="font-size:60px; margin-bottom:10px;">🎉🐦🎉</div>
+  <h1>수고하셨습니다!</h1>
+  <div id="endPlayerName" style="font-size:34px; color:#2c3e50; margin-bottom:5px;"></div>
+  <div id="finalScore">0점</div>
+  <button class="bigBtn" id="restartBtn">다시하기</button>
+</div>
+
+<canvas id="gameCanvas"></canvas>
+
+<script>
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+
+function resizeCanvas() {
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+}
+resizeCanvas();
+window.addEventListener('resize', resizeCanvas);
+
+// ---------- 상태 ----------
+let playerName = "";
+let score = 0;
+let timeLeft = 150; // 2분 30초
+let gameRunning = false;
+let timerInterval = null;
+
+// 마우스 좌표
+let mouseX = window.innerWidth / 2;
+let mouseY = window.innerHeight - 100;
+
+// 배경 장식용
+let cloudOffset = 0;
+
+// ---------- 새(타겟) ----------
+const birdEmojis = ['🐦', '🦜', '🦉', '🐤', '🦆', '🐧'];
+let birds = [];
+let fallingBirds = []; // 맞아서 떨어지는 새
+let fleeingBirds = []; // 헛클릭으로 도망가는 새 (클릭한 근처 새 찾아서 도망 애니메이션 주는 용도는 아니고, 그냥 재미 이모지)
+let laughEffects = []; // 헛클릭 낄낄 텍스트 효과
+
+let spawnTimer = 0;
+let spawnInterval = 70; // 프레임 단위, 점점 빨라짐
+const startTime = 150;
+
+function spawnBird() {
+  const emoji = birdEmojis[Math.floor(Math.random() * birdEmojis.length)];
+  const fromLeft = Math.random() < 0.5;
+  const rowPick = Math.random();
+  let targetY;
+  if (rowPick < 0.33) targetY = canvas.height * 0.2;      // 상단
+  else if (rowPick < 0.66) targetY = canvas.height * 0.45; // 중단
+  else targetY = canvas.height * 0.68;                     // 하단
+
+  // 속도: 시간이 지날수록 살짝 빨라짐 (초기엔 느리게, 화면 가로지르는데 4~5초)
+  const progress = 1 - (timeLeft / startTime); // 0 -> 1
+  const baseSpeed = 1.0 + progress * 0.8; // 1.0 ~ 1.8 px/frame 정도 (더 느리게)
+  const speed = baseSpeed * (0.85 + Math.random() * 0.3);
+
+  const bird = {
+    emoji: emoji,
+    x: fromLeft ? -60 : canvas.width + 60,
+    y: targetY + (Math.random() * 60 - 30),
+    vx: fromLeft ? speed : -speed,
+    vy: (Math.random() * 0.6 - 0.3),
+    size: 70,
+    id: Math.random()
+  };
+  birds.push(bird);
+}
+
+function distance(x1, y1, x2, y2) {
+  return Math.sqrt((x1 - x2) ** 2 + (y1 - y2) ** 2);
+}
+
+// ---------- 클릭 처리 ----------
+canvas.addEventListener('click', function(e) {
+  if (!gameRunning) return;
+  const rect = canvas.getBoundingClientRect();
+  const clickX = e.clientX - rect.left;
+  const clickY = e.clientY - rect.top;
+
+  let hit = false;
+  for (let i = birds.length - 1; i >= 0; i--) {
+    const b = birds[i];
+    if (distance(clickX, clickY, b.x, b.y) < b.size * 0.7) {
+      // 명중!
+      hit = true;
+      score += 10;
+      fallingBirds.push({
+        emoji: b.emoji,
+        x: b.x, y: b.y,
+        vy: 2, rotation: 0, rotSpeed: (Math.random() * 20 - 10),
+        scale: 1, growing: true,
+        scoreShown: true, scoreOpacity: 1, scoreY: b.y
+      });
+      birds.splice(i, 1);
+      break;
+    }
+  }
+
+  if (!hit) {
+    // 헛클릭 - 낄낄 웃음 효과
+    laughEffects.push({
+      x: clickX, y: clickY, opacity: 1, life: 0
+    });
+  }
+});
+
+// 마우스 위치 갱신 (총구 방향용)
+window.addEventListener('mousemove', function(e) {
+  mouseX = e.clientX;
+  mouseY = e.clientY;
+});
+
+// ---------- 포수 그리기 ----------
+function roundRect(x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.arcTo(x + w, y, x + w, y + h, r);
+  ctx.arcTo(x + w, y + h, x, y + h, r);
+  ctx.arcTo(x, y + h, x, y, r);
+  ctx.arcTo(x, y, x + w, y, r);
+  ctx.closePath();
+}
+
+function drawBackgroundDecor() {
+  // 태양
+  ctx.save();
+  ctx.fillStyle = '#FFD93D';
+  ctx.shadowColor = 'rgba(255, 217, 61, 0.6)';
+  ctx.shadowBlur = 30;
+  ctx.beginPath();
+  ctx.arc(canvas.width - 100, 90, 45, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+
+  // 흐르는 구름
+  cloudOffset += 0.15;
+  if (cloudOffset > canvas.width + 150) cloudOffset = -150;
+
+  function drawCloud(x, y, scale) {
+    ctx.save();
+    ctx.fillStyle = 'rgba(255,255,255,0.9)';
+    ctx.beginPath();
+    ctx.arc(x, y, 22 * scale, 0, Math.PI * 2);
+    ctx.arc(x + 25 * scale, y - 10 * scale, 26 * scale, 0, Math.PI * 2);
+    ctx.arc(x + 52 * scale, y, 20 * scale, 0, Math.PI * 2);
+    ctx.arc(x + 25 * scale, y + 8 * scale, 24 * scale, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  }
+
+  drawCloud(cloudOffset, 80, 1);
+  drawCloud(cloudOffset + 300, 140, 0.7);
+  drawCloud(cloudOffset - 350, 60, 0.85);
+
+  // 풀잎 디테일 (하단 초록 영역)
+  const grassTop = canvas.height * 0.6;
+  ctx.save();
+  ctx.strokeStyle = 'rgba(60, 130, 50, 0.5)';
+  ctx.lineWidth = 3;
+  for (let i = 0; i < canvas.width; i += 35) {
+    const h = 10 + (i % 70 === 0 ? 6 : 0);
+    ctx.beginPath();
+    ctx.moveTo(i, grassTop + 6);
+    ctx.quadraticCurveTo(i + 4, grassTop - h + 6, i + 8, grassTop + 6);
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
+function drawHunter() {
+  const baseX = canvas.width / 2;
+  const baseY = canvas.height - 30;
+  const headY = baseY - 130;
+  const angle = Math.atan2(mouseY - (baseY - 100), mouseX - baseX);
+
+  ctx.save();
+
+  ctx.fillStyle = 'rgba(0,0,0,0.2)';
+  ctx.beginPath();
+  ctx.ellipse(baseX, baseY + 12, 55, 14, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.fillStyle = '#4A5568';
+  ctx.beginPath();
+  ctx.moveTo(baseX - 30, baseY - 55);
+  ctx.lineTo(baseX - 45, baseY + 5);
+  ctx.lineTo(baseX - 15, baseY + 5);
+  ctx.lineTo(baseX - 8, baseY - 55);
+  ctx.closePath();
+  ctx.fill();
+  ctx.beginPath();
+  ctx.moveTo(baseX + 30, baseY - 55);
+  ctx.lineTo(baseX + 45, baseY + 5);
+  ctx.lineTo(baseX + 15, baseY + 5);
+  ctx.lineTo(baseX + 8, baseY - 55);
+  ctx.closePath();
+  ctx.fill();
+
+  ctx.fillStyle = '#3E2723';
+  ctx.beginPath();
+  ctx.ellipse(baseX - 30, baseY + 8, 20, 10, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.beginPath();
+  ctx.ellipse(baseX + 30, baseY + 8, 20, 10, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.fillStyle = '#556B2F';
+  roundRect(baseX - 48, baseY - 130, 96, 78, 18);
+  ctx.fill();
+
+  ctx.fillStyle = '#3F5023';
+  roundRect(baseX - 38, baseY - 100, 26, 20, 5);
+  ctx.fill();
+  roundRect(baseX + 12, baseY - 100, 26, 20, 5);
+  ctx.fill();
+
+  ctx.fillStyle = '#3E2723';
+  ctx.fillRect(baseX - 48, baseY - 58, 96, 10);
+
+  ctx.fillStyle = '#E8B18C';
+  ctx.fillRect(baseX - 10, headY + 25, 20, 15);
+
+  ctx.fillStyle = '#F0C29A';
+  ctx.beginPath();
+  ctx.arc(baseX, headY, 32, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.fillStyle = 'rgba(255,150,150,0.5)';
+  ctx.beginPath();
+  ctx.arc(baseX - 18, headY + 8, 6, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.beginPath();
+  ctx.arc(baseX + 18, headY + 8, 6, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.fillStyle = '#2c3e50';
+  ctx.beginPath();
+  ctx.arc(baseX - 10, headY - 3, 3.5, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.beginPath();
+  ctx.arc(baseX + 10, headY - 3, 3.5, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.strokeStyle = '#8B4513';
+  ctx.lineWidth = 2.5;
+  ctx.beginPath();
+  ctx.arc(baseX, headY + 8, 10, 0.15 * Math.PI, 0.85 * Math.PI);
+  ctx.stroke();
+
+  ctx.strokeStyle = '#6D4C41';
+  ctx.lineWidth = 4;
+  ctx.lineCap = 'round';
+  ctx.beginPath();
+  ctx.moveTo(baseX - 14, headY + 4);
+  ctx.quadraticCurveTo(baseX - 5, headY + 10, baseX, headY + 4);
+  ctx.quadraticCurveTo(baseX + 5, headY + 10, baseX + 14, headY + 4);
+  ctx.stroke();
+
+  ctx.fillStyle = '#8D6E63';
+  ctx.beginPath();
+  ctx.ellipse(baseX, headY - 28, 42, 12, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.beginPath();
+  ctx.arc(baseX, headY - 34, 24, Math.PI, 0);
+  ctx.fill();
+  ctx.fillStyle = '#6D4C41';
+  ctx.fillRect(baseX - 24, headY - 36, 48, 8);
+
+  const shoulderX = baseX;
+  const shoulderY = baseY - 95;
+  const armLen = 55;
+  const armEndX = shoulderX + Math.cos(angle) * armLen;
+  const armEndY = shoulderY + Math.sin(angle) * armLen * 0.6 - 10;
+  ctx.strokeStyle = '#556B2F';
+  ctx.lineWidth = 20;
+  ctx.lineCap = 'round';
+  ctx.beginPath();
+  ctx.moveTo(shoulderX, shoulderY);
+  ctx.lineTo(armEndX, armEndY);
+  ctx.stroke();
+  ctx.fillStyle = '#F0C29A';
+  ctx.beginPath();
+  ctx.arc(armEndX, armEndY, 11, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.translate(armEndX, armEndY);
+  ctx.rotate(angle);
+  ctx.fillStyle = '#3E2723';
+  roundRect(0, -9, 85, 18, 6);
+  ctx.fill();
+  ctx.fillStyle = '#2c1810';
+  ctx.beginPath();
+  ctx.moveTo(10, 9);
+  ctx.lineTo(2, 35);
+  ctx.lineTo(20, 35);
+  ctx.lineTo(22, 9);
+  ctx.closePath();
+  ctx.fill();
+  ctx.fillStyle = '#1a1a1a';
+  ctx.fillRect(78, -11, 12, 22);
+
+  ctx.restore();
+}
+
+// ---------- 커서(조준선) 그리기 ----------
+function drawCrosshair() {
+  ctx.save();
+  ctx.strokeStyle = 'rgba(255,255,255,0.9)';
+  ctx.lineWidth = 5;
+  ctx.beginPath();
+  ctx.arc(mouseX, mouseY, 22, 0, Math.PI * 2);
+  ctx.stroke();
+
+  ctx.strokeStyle = '#FF3B30';
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  ctx.arc(mouseX, mouseY, 22, 0, Math.PI * 2);
+  ctx.moveTo(mouseX - 32, mouseY);
+  ctx.lineTo(mouseX - 14, mouseY);
+  ctx.moveTo(mouseX + 14, mouseY);
+  ctx.lineTo(mouseX + 32, mouseY);
+  ctx.moveTo(mouseX, mouseY - 32);
+  ctx.lineTo(mouseX, mouseY - 14);
+  ctx.moveTo(mouseX, mouseY + 14);
+  ctx.lineTo(mouseX, mouseY + 32);
+  ctx.stroke();
+
+  ctx.fillStyle = '#FF3B30';
+  ctx.beginPath();
+  ctx.arc(mouseX, mouseY, 3.5, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+}
+
+// ---------- 새 그리기 ----------
+function drawBirds() {
+  birds.forEach(b => {
+    b.wingPhase = (b.wingPhase || Math.random() * 10) + 0.25;
+    const bob = Math.sin(b.wingPhase) * 6;
+    const wobbleScale = 1 + Math.sin(b.wingPhase) * 0.06;
+
+    // 그림자 (바닥에 살짝, 은은하게)
+    ctx.save();
+    ctx.globalAlpha = 0.15;
+    ctx.fillStyle = '#000';
+    ctx.beginPath();
+    ctx.ellipse(b.x, canvas.height * 0.72, 22, 7, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+
+    ctx.font = b.size + "px serif";
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.save();
+    ctx.translate(b.x, b.y + bob);
+    ctx.scale((b.vx > 0 ? -1 : 1) * wobbleScale, wobbleScale);
+    ctx.fillText(b.emoji, 0, 0);
+    ctx.restore();
+  });
+}
+
+function drawFallingBirds() {
+  for (let i = fallingBirds.length - 1; i >= 0; i--) {
+    const f = fallingBirds[i];
+    if (f.growing) {
+      f.scale += 0.08;
+      if (f.scale > 1.6) f.growing = false;
+    } else {
+      f.y += f.vy;
+      f.vy += 0.5;
+      f.rotation += f.rotSpeed;
+    }
+    ctx.save();
+    ctx.translate(f.x, f.y);
+    ctx.rotate(f.rotation * Math.PI / 180);
+    ctx.scale(f.scale, f.scale);
+    ctx.font = "70px serif";
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    // 반짝임 효과: growing 단계에서 노란 후광
+    if (f.growing) {
+      ctx.shadowColor = 'gold';
+      ctx.shadowBlur = 30;
+    }
+    ctx.fillText(f.emoji, 0, 0);
+    ctx.restore();
+
+    // 점수 텍스트 뜨는 효과
+    if (f.scoreShown) {
+      f.scoreY -= 1.5;
+      f.scoreOpacity -= 0.02;
+      ctx.save();
+      ctx.globalAlpha = Math.max(f.scoreOpacity, 0);
+      ctx.fillStyle = '#FF6B35';
+      ctx.font = 'bold 36px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('+10', f.x, f.scoreY - 50);
+      ctx.restore();
+      if (f.scoreOpacity <= 0) f.scoreShown = false;
+    }
+
+    // 화면 밖으로 나가거나 완전히 투명해지면 제거
+    if (f.y > canvas.height + 100) {
+      fallingBirds.splice(i, 1);
+    }
+  }
+}
+
+function drawLaughEffects() {
+  for (let i = laughEffects.length - 1; i >= 0; i--) {
+    const l = laughEffects[i];
+    l.life += 1;
+    l.y -= 1.2;
+    l.opacity = Math.max(1 - l.life / 40, 0);
+    ctx.save();
+    ctx.globalAlpha = l.opacity;
+    ctx.font = '40px serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('😆 낄낄낄~', l.x, l.y);
+    ctx.restore();
+    if (l.life > 40) laughEffects.splice(i, 1);
+  }
+}
+
+// ---------- 게임 루프 ----------
+function updateBirds() {
+  for (let i = birds.length - 1; i >= 0; i--) {
+    const b = birds[i];
+    b.x += b.vx;
+    b.y += b.vy;
+    if (b.x < -100 || b.x > canvas.width + 100) {
+      birds.splice(i, 1);
+    }
+  }
+
+  spawnTimer++;
+  const progress = 1 - (timeLeft / startTime);
+  const currentInterval = Math.max(150 - progress * 110, 40); // 초반엔 뜸하게(150), 후반엔 촘촘하게(최소 40)
+  if (spawnTimer > currentInterval) {
+    spawnBird();
+    spawnTimer = 0;
+  }
+}
+
+function gameLoop() {
+  if (!gameRunning) return;
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  drawBackgroundDecor();
+  updateBirds();
+  drawBirds();
+  drawFallingBirds();
+  drawLaughEffects();
+  drawHunter();
+  drawCrosshair();
+
+  document.getElementById('scoreDisplay').textContent = '점수: ' + score;
+
+  requestAnimationFrame(gameLoop);
+}
+
+// ---------- 타이머 ----------
+function startTimer() {
+  timerInterval = setInterval(() => {
+    timeLeft--;
+    const min = Math.floor(timeLeft / 60);
+    const sec = timeLeft % 60;
+    document.getElementById('timeDisplay').textContent = min + ':' + (sec < 10 ? '0' : '') + sec;
+    if (timeLeft <= 0) {
+      endGame();
+    }
+  }, 1000);
+}
+
+function endGame() {
+  gameRunning = false;
+  clearInterval(timerInterval);
+  document.getElementById('hud').classList.add('hidden');
+  document.getElementById('endScreen').classList.remove('hidden');
+  document.getElementById('endPlayerName').textContent = playerName + ' 님의 결과';
+  document.getElementById('finalScore').textContent = score + '점';
+}
+
+// ---------- 화면 전환 ----------
+document.getElementById('startBtn').addEventListener('click', () => {
+  const input = document.getElementById('nameInput').value.trim();
+  playerName = input === '' ? '참가자' : input;
+  document.getElementById('startScreen').classList.add('hidden');
+  document.getElementById('welcomeScreen').classList.remove('hidden');
+  document.getElementById('welcomeMsg').textContent = playerName + '님 오신 것을 환영합니다!';
+
+  setTimeout(() => {
+    document.getElementById('welcomeScreen').classList.add('hidden');
+    document.getElementById('hud').classList.remove('hidden');
+    document.getElementById('playerNameDisplay').textContent = playerName + ' 님';
+    document.getElementById('scoreDisplay').textContent = '점수: 0';
+    document.getElementById('timeDisplay').textContent = '2:30';
+
+    score = 0;
+    timeLeft = 150;
+    birds = [];
+    fallingBirds = [];
+    laughEffects = [];
+    spawnTimer = 0;
+    gameRunning = true;
+    startTimer();
+    gameLoop();
+  }, 2000);
+});
+
+document.getElementById('restartBtn').addEventListener('click', () => {
+  document.getElementById('endScreen').classList.add('hidden');
+  document.getElementById('startScreen').classList.remove('hidden');
+  document.getElementById('nameInput').value = '';
+});
+
+// 엔터키로도 시작 가능
+document.getElementById('nameInput').addEventListener('keypress', (e) => {
+  if (e.key === 'Enter') {
+    document.getElementById('startBtn').click();
+  }
+});
+</script>
+</body>
+</html>
