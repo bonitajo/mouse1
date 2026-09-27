@@ -1,641 +1,1322 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-<meta charset="UTF-8">
-<title>마우스야 놀자</title>
-<style>
-  html, body {
-    margin: 0; padding: 0; overflow: hidden;
-    width: 100%; height: 100%;
-    background: linear-gradient(to bottom, #87CEEB 0%, #B0E0E6 60%, #98D98E 60%, #7CC96F 100%);
-    font-family: 'Malgun Gothic', 'Apple SD Gothic Neo', sans-serif;
-    cursor: none;
-    user-select: none;
-  }
-  #gameCanvas {
-    display: block;
-    background: transparent;
-  }
-  #startScreen, #endScreen {
-    position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-    display: flex; flex-direction: column; align-items: center; justify-content: center;
-    background: radial-gradient(circle at center, #A8E0F5 0%, #6EC6FF 100%);
-    z-index: 10;
-    cursor: default;
-  }
-  #startScreen h1, #endScreen h1 {
-    font-size: clamp(42px, 4.2vw, 58px); color: #23445b; margin-bottom: 15px;
-    text-shadow: 3px 3px 0px #fff;
-  }
-  #startScreen p, #endScreen p {
-    font-family: inherit;
-  }
-  #nameInput {
-    font-size: clamp(26px, 2.6vw, 34px); padding: 15px 24px; border-radius: 20px;
-    border: 5px solid #2c3e50; text-align: center; width: 400px;
-    margin-bottom: 30px;
-    box-shadow: inset 0 2px 6px rgba(0,0,0,0.15);
-    outline: none;
-  }
-  #nameInput:focus {
-    border-color: #FF6B35;
-  }
-  .bigBtn {
-    font-size: clamp(28px, 2.8vw, 36px); padding: 18px 52px; border-radius: 36px;
-    border: none; background: linear-gradient(180deg, #FF8A5C 0%, #FF6B35 100%);
-    color: white; cursor: pointer;
-    box-shadow: 0 8px 0 #c1441e;
-    transition: transform 0.1s;
-    font-weight: bold;
-  }
-  .bigBtn:hover {
-    filter: brightness(1.05);
-  }
-  .bigBtn:active {
-    transform: translateY(8px);
-    box-shadow: 0 0px 0 #c1441e;
-  }
-  #welcomeMsg {
-    font-size: clamp(34px, 4vw, 48px); color: #b95319; margin-bottom: 30px;
-    text-align: center; font-weight: bold;
-    text-shadow: 2px 2px 0px #fff;
-  }
-  #finalScore {
-    font-size: clamp(68px, 7.5vw, 88px); color: #d96a25; margin: 15px 0;
-    text-shadow: 4px 4px 0px #fff;
-    font-weight: bold;
-  }
-  #hud {
-    position: absolute; top: 20px; left: 0; width: 100%;
-    display: flex; justify-content: space-between; padding: 0 40px;
-    box-sizing: border-box;
-    z-index: 5;
-    pointer-events: none;
-  }
-  #hud > div {
-    background: rgba(255,255,255,0.92);
-    padding: 12px 22px;
-    border: 2px solid rgba(255,255,255,0.95);
-    border-radius: 18px;
-    font-size: clamp(24px, 2.1vw, 30px);
-    font-weight: 900; color: #203e55;
-    box-shadow: 0 5px 14px rgba(0,0,0,0.16);
-    min-width: 150px;
-    text-align: center;
-  }
-  #scoreDisplay {
-    color: #e67e22 !important;
-  }
-  .hidden { display: none !important; }
-</style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>청춘 컴퓨터 교실</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Tone.js -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
+    
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Jua&display=swap');
+        
+        body {
+            font-family: 'Jua', sans-serif;
+            background-color: #f0fdf4;
+            user-select: none;
+            touch-action: manipulation;
+        }
+        
+        input {
+            user-select: auto;
+        }
+
+        @keyframes popIn {
+            0% { transform: scale(0); opacity: 0; }
+            80% { transform: scale(1.1); opacity: 1; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+        .pop-in {
+            animation: popIn 0.3s ease-out forwards;
+        }
+
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-5px); }
+            50% { transform: translateX(5px); }
+            75% { transform: translateX(-5px); }
+        }
+        .error-shake {
+            animation: shake 0.3s;
+            background-color: #fee2e2 !important;
+            color: #b91c1c !important;
+            border-color: #f87171 !important;
+        }
+
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .no-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+        
+        /* 오타 표시용 스타일 */
+        .char-correct { color: #2563eb; } /* 파란색 */
+        .char-composing { color: #f97316; border-bottom: 4px solid #f97316; } /* 주황색 밑줄 */
+        .char-wrong { 
+            background-color: #fecaca; 
+            color: #b91c1c; 
+            border-radius: 4px; 
+            padding: 0 2px;
+            text-decoration: underline; 
+            text-decoration-color: #ef4444;
+            text-decoration-thickness: 4px;
+        } /* 빨간 배경 및 밑줄 */
+        .char-default { color: #1f2937; } /* 기본 검정/회색 */
+    </style>
 </head>
-<body>
-
-<div id="startScreen">
-  <div style="font-size:70px; margin-bottom:10px;">🐦 🦉 🦆 🦜</div>
-  <h1>마우스야 놀자</h1>
-  <p style="font-size:26px; color:#2c3e50; margin-bottom:25px;">이름을 입력하고 시작 버튼을 눌러주세요</p>
-  <input type="text" id="nameInput" placeholder="이름을 입력하세요" maxlength="10">
-  <button class="bigBtn" id="startBtn">시작하기</button>
-</div>
-
-<div id="welcomeScreen" class="hidden" style="position:absolute; top:0; left:0; width:100%; height:100%; display:flex; flex-direction:column; align-items:center; justify-content:center; background:rgba(135,206,235,0.95); z-index:10;">
-  <div id="welcomeMsg"></div>
-  <p style="font-size:26px; color:#2c3e50;">잠시 후 게임이 시작됩니다...</p>
-</div>
-
-<div id="hud" class="hidden">
-  <div id="playerNameDisplay"></div>
-  <div id="timeDisplay">2:30</div>
-  <div id="scoreDisplay">점수: 0</div>
-</div>
-
-<div id="endScreen" class="hidden">
-  <div style="font-size:60px; margin-bottom:10px;">🎉🐦🎉</div>
-  <h1>수고하셨습니다!</h1>
-  <div id="endPlayerName" style="font-size:34px; color:#2c3e50; margin-bottom:5px;"></div>
-  <div id="finalScore">0점</div>
-  <button class="bigBtn" id="restartBtn">다시하기</button>
-</div>
-
-<canvas id="gameCanvas"></canvas>
-
-<script>
-const canvas = document.getElementById('gameCanvas');
-const ctx = canvas.getContext('2d');
-
-function resizeCanvas() {
-  canvas.width = window.innerWidth;
-  canvas.height = window.innerHeight;
-}
-resizeCanvas();
-window.addEventListener('resize', resizeCanvas);
-
-// ---------- 상태 ----------
-let playerName = "";
-let score = 0;
-let timeLeft = 150; // 2분 30초
-let gameRunning = false;
-let timerInterval = null;
-
-// 마우스 좌표
-let mouseX = window.innerWidth / 2;
-let mouseY = window.innerHeight - 100;
-
-// 배경 장식용
-let cloudOffset = 0;
-
-// ---------- 새(타겟) ----------
-const birdEmojis = ['🐦', '🦜', '🦉', '🐤', '🦆', '🐧'];
-let birds = [];
-let fallingBirds = []; // 맞아서 떨어지는 새
-let fleeingBirds = []; // 헛클릭으로 도망가는 새 (클릭한 근처 새 찾아서 도망 애니메이션 주는 용도는 아니고, 그냥 재미 이모지)
-let laughEffects = []; // 헛클릭 낄낄 텍스트 효과
-
-let spawnTimer = 0;
-let spawnInterval = 70; // 프레임 단위, 점점 빨라짐
-const startTime = 150;
-
-function spawnBird() {
-  const emoji = birdEmojis[Math.floor(Math.random() * birdEmojis.length)];
-  const fromLeft = Math.random() < 0.5;
-  const rowPick = Math.random();
-  let targetY;
-  if (rowPick < 0.33) targetY = canvas.height * 0.2;      // 상단
-  else if (rowPick < 0.66) targetY = canvas.height * 0.45; // 중단
-  else targetY = canvas.height * 0.68;                     // 하단
-
-  // 속도: 시간이 지날수록 살짝 빨라짐 (초기엔 느리게, 화면 가로지르는데 4~5초)
-  const progress = 1 - (timeLeft / startTime); // 0 -> 1
-  const baseSpeed = 1.0 + progress * 0.8; // 1.0 ~ 1.8 px/frame 정도 (더 느리게)
-  const speed = baseSpeed * (0.85 + Math.random() * 0.3);
-
-  const bird = {
-    emoji: emoji,
-    x: fromLeft ? -60 : canvas.width + 60,
-    y: targetY + (Math.random() * 60 - 30),
-    vx: fromLeft ? speed : -speed,
-    vy: (Math.random() * 0.6 - 0.3),
-    size: 70,
-    id: Math.random()
-  };
-  birds.push(bird);
-}
-
-function distance(x1, y1, x2, y2) {
-  return Math.sqrt((x1 - x2) ** 2 + (y1 - y2) ** 2);
-}
-
-// ---------- 클릭 처리 ----------
-canvas.addEventListener('click', function(e) {
-  if (!gameRunning) return;
-  const rect = canvas.getBoundingClientRect();
-  const clickX = e.clientX - rect.left;
-  const clickY = e.clientY - rect.top;
-
-  let hit = false;
-  for (let i = birds.length - 1; i >= 0; i--) {
-    const b = birds[i];
-    if (distance(clickX, clickY, b.x, b.y) < b.size * 0.7) {
-      // 명중!
-      hit = true;
-      score += 10;
-      fallingBirds.push({
-        emoji: b.emoji,
-        x: b.x, y: b.y,
-        vy: 2, rotation: 0, rotSpeed: (Math.random() * 20 - 10),
-        scale: 1, growing: true,
-        scoreShown: true, scoreOpacity: 1, scoreY: b.y
-      });
-      birds.splice(i, 1);
-      break;
-    }
-  }
-
-  if (!hit) {
-    // 헛클릭 - 낄낄 웃음 효과
-    laughEffects.push({
-      x: clickX, y: clickY, opacity: 1, life: 0
-    });
-  }
-});
-
-// 마우스 위치 갱신 (총구 방향용)
-window.addEventListener('mousemove', function(e) {
-  mouseX = e.clientX;
-  mouseY = e.clientY;
-});
-
-// ---------- 포수 그리기 ----------
-function roundRect(x, y, w, h, r) {
-  ctx.beginPath();
-  ctx.moveTo(x + r, y);
-  ctx.arcTo(x + w, y, x + w, y + h, r);
-  ctx.arcTo(x + w, y + h, x, y + h, r);
-  ctx.arcTo(x, y + h, x, y, r);
-  ctx.arcTo(x, y, x + w, y, r);
-  ctx.closePath();
-}
-
-function drawBackgroundDecor() {
-  // 태양
-  ctx.save();
-  ctx.fillStyle = '#FFD93D';
-  ctx.shadowColor = 'rgba(255, 217, 61, 0.6)';
-  ctx.shadowBlur = 30;
-  ctx.beginPath();
-  ctx.arc(canvas.width - 100, 90, 45, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.restore();
-
-  // 흐르는 구름
-  cloudOffset += 0.15;
-  if (cloudOffset > canvas.width + 150) cloudOffset = -150;
-
-  function drawCloud(x, y, scale) {
-    ctx.save();
-    ctx.fillStyle = 'rgba(255,255,255,0.9)';
-    ctx.beginPath();
-    ctx.arc(x, y, 22 * scale, 0, Math.PI * 2);
-    ctx.arc(x + 25 * scale, y - 10 * scale, 26 * scale, 0, Math.PI * 2);
-    ctx.arc(x + 52 * scale, y, 20 * scale, 0, Math.PI * 2);
-    ctx.arc(x + 25 * scale, y + 8 * scale, 24 * scale, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.restore();
-  }
-
-  drawCloud(cloudOffset, 80, 1);
-  drawCloud(cloudOffset + 300, 140, 0.7);
-  drawCloud(cloudOffset - 350, 60, 0.85);
-
-  // 풀잎 디테일 (하단 초록 영역)
-  const grassTop = canvas.height * 0.6;
-  ctx.save();
-  ctx.strokeStyle = 'rgba(60, 130, 50, 0.5)';
-  ctx.lineWidth = 3;
-  for (let i = 0; i < canvas.width; i += 35) {
-    const h = 10 + (i % 70 === 0 ? 6 : 0);
-    ctx.beginPath();
-    ctx.moveTo(i, grassTop + 6);
-    ctx.quadraticCurveTo(i + 4, grassTop - h + 6, i + 8, grassTop + 6);
-    ctx.stroke();
-  }
-  ctx.restore();
-}
-
-function drawHunter() {
-  const baseX = canvas.width / 2;
-  const baseY = canvas.height - 30;
-  const headY = baseY - 130;
-  const angle = Math.atan2(mouseY - (baseY - 100), mouseX - baseX);
-
-  ctx.save();
-
-  ctx.fillStyle = 'rgba(0,0,0,0.2)';
-  ctx.beginPath();
-  ctx.ellipse(baseX, baseY + 12, 55, 14, 0, 0, Math.PI * 2);
-  ctx.fill();
-
-  ctx.fillStyle = '#4A5568';
-  ctx.beginPath();
-  ctx.moveTo(baseX - 30, baseY - 55);
-  ctx.lineTo(baseX - 45, baseY + 5);
-  ctx.lineTo(baseX - 15, baseY + 5);
-  ctx.lineTo(baseX - 8, baseY - 55);
-  ctx.closePath();
-  ctx.fill();
-  ctx.beginPath();
-  ctx.moveTo(baseX + 30, baseY - 55);
-  ctx.lineTo(baseX + 45, baseY + 5);
-  ctx.lineTo(baseX + 15, baseY + 5);
-  ctx.lineTo(baseX + 8, baseY - 55);
-  ctx.closePath();
-  ctx.fill();
-
-  ctx.fillStyle = '#3E2723';
-  ctx.beginPath();
-  ctx.ellipse(baseX - 30, baseY + 8, 20, 10, 0, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.beginPath();
-  ctx.ellipse(baseX + 30, baseY + 8, 20, 10, 0, 0, Math.PI * 2);
-  ctx.fill();
-
-  ctx.fillStyle = '#556B2F';
-  roundRect(baseX - 48, baseY - 130, 96, 78, 18);
-  ctx.fill();
-
-  ctx.fillStyle = '#3F5023';
-  roundRect(baseX - 38, baseY - 100, 26, 20, 5);
-  ctx.fill();
-  roundRect(baseX + 12, baseY - 100, 26, 20, 5);
-  ctx.fill();
-
-  ctx.fillStyle = '#3E2723';
-  ctx.fillRect(baseX - 48, baseY - 58, 96, 10);
-
-  ctx.fillStyle = '#E8B18C';
-  ctx.fillRect(baseX - 10, headY + 25, 20, 15);
-
-  ctx.fillStyle = '#F0C29A';
-  ctx.beginPath();
-  ctx.arc(baseX, headY, 32, 0, Math.PI * 2);
-  ctx.fill();
-
-  ctx.fillStyle = 'rgba(255,150,150,0.5)';
-  ctx.beginPath();
-  ctx.arc(baseX - 18, headY + 8, 6, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.beginPath();
-  ctx.arc(baseX + 18, headY + 8, 6, 0, Math.PI * 2);
-  ctx.fill();
-
-  ctx.fillStyle = '#2c3e50';
-  ctx.beginPath();
-  ctx.arc(baseX - 10, headY - 3, 3.5, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.beginPath();
-  ctx.arc(baseX + 10, headY - 3, 3.5, 0, Math.PI * 2);
-  ctx.fill();
-
-  ctx.strokeStyle = '#8B4513';
-  ctx.lineWidth = 2.5;
-  ctx.beginPath();
-  ctx.arc(baseX, headY + 8, 10, 0.15 * Math.PI, 0.85 * Math.PI);
-  ctx.stroke();
-
-  ctx.strokeStyle = '#6D4C41';
-  ctx.lineWidth = 4;
-  ctx.lineCap = 'round';
-  ctx.beginPath();
-  ctx.moveTo(baseX - 14, headY + 4);
-  ctx.quadraticCurveTo(baseX - 5, headY + 10, baseX, headY + 4);
-  ctx.quadraticCurveTo(baseX + 5, headY + 10, baseX + 14, headY + 4);
-  ctx.stroke();
-
-  ctx.fillStyle = '#8D6E63';
-  ctx.beginPath();
-  ctx.ellipse(baseX, headY - 28, 42, 12, 0, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.beginPath();
-  ctx.arc(baseX, headY - 34, 24, Math.PI, 0);
-  ctx.fill();
-  ctx.fillStyle = '#6D4C41';
-  ctx.fillRect(baseX - 24, headY - 36, 48, 8);
-
-  const shoulderX = baseX;
-  const shoulderY = baseY - 95;
-  const armLen = 55;
-  const armEndX = shoulderX + Math.cos(angle) * armLen;
-  const armEndY = shoulderY + Math.sin(angle) * armLen * 0.6 - 10;
-  ctx.strokeStyle = '#556B2F';
-  ctx.lineWidth = 20;
-  ctx.lineCap = 'round';
-  ctx.beginPath();
-  ctx.moveTo(shoulderX, shoulderY);
-  ctx.lineTo(armEndX, armEndY);
-  ctx.stroke();
-  ctx.fillStyle = '#F0C29A';
-  ctx.beginPath();
-  ctx.arc(armEndX, armEndY, 11, 0, Math.PI * 2);
-  ctx.fill();
-
-  ctx.translate(armEndX, armEndY);
-  ctx.rotate(angle);
-  ctx.fillStyle = '#3E2723';
-  roundRect(0, -9, 85, 18, 6);
-  ctx.fill();
-  ctx.fillStyle = '#2c1810';
-  ctx.beginPath();
-  ctx.moveTo(10, 9);
-  ctx.lineTo(2, 35);
-  ctx.lineTo(20, 35);
-  ctx.lineTo(22, 9);
-  ctx.closePath();
-  ctx.fill();
-  ctx.fillStyle = '#1a1a1a';
-  ctx.fillRect(78, -11, 12, 22);
-
-  ctx.restore();
-}
-
-// ---------- 커서(조준선) 그리기 ----------
-function drawCrosshair() {
-  ctx.save();
-  ctx.strokeStyle = 'rgba(255,255,255,0.9)';
-  ctx.lineWidth = 5;
-  ctx.beginPath();
-  ctx.arc(mouseX, mouseY, 22, 0, Math.PI * 2);
-  ctx.stroke();
-
-  ctx.strokeStyle = '#FF3B30';
-  ctx.lineWidth = 3;
-  ctx.beginPath();
-  ctx.arc(mouseX, mouseY, 22, 0, Math.PI * 2);
-  ctx.moveTo(mouseX - 32, mouseY);
-  ctx.lineTo(mouseX - 14, mouseY);
-  ctx.moveTo(mouseX + 14, mouseY);
-  ctx.lineTo(mouseX + 32, mouseY);
-  ctx.moveTo(mouseX, mouseY - 32);
-  ctx.lineTo(mouseX, mouseY - 14);
-  ctx.moveTo(mouseX, mouseY + 14);
-  ctx.lineTo(mouseX, mouseY + 32);
-  ctx.stroke();
-
-  ctx.fillStyle = '#FF3B30';
-  ctx.beginPath();
-  ctx.arc(mouseX, mouseY, 3.5, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.restore();
-}
-
-// ---------- 새 그리기 ----------
-function drawBirds() {
-  birds.forEach(b => {
-    b.wingPhase = (b.wingPhase || Math.random() * 10) + 0.25;
-    const bob = Math.sin(b.wingPhase) * 6;
-    const wobbleScale = 1 + Math.sin(b.wingPhase) * 0.06;
-
-    // 그림자 (바닥에 살짝, 은은하게)
-    ctx.save();
-    ctx.globalAlpha = 0.15;
-    ctx.fillStyle = '#000';
-    ctx.beginPath();
-    ctx.ellipse(b.x, canvas.height * 0.72, 22, 7, 0, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.restore();
-
-    ctx.font = b.size + "px serif";
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.save();
-    ctx.translate(b.x, b.y + bob);
-    ctx.scale((b.vx > 0 ? -1 : 1) * wobbleScale, wobbleScale);
-    ctx.fillText(b.emoji, 0, 0);
-    ctx.restore();
-  });
-}
-
-function drawFallingBirds() {
-  for (let i = fallingBirds.length - 1; i >= 0; i--) {
-    const f = fallingBirds[i];
-    if (f.growing) {
-      f.scale += 0.08;
-      if (f.scale > 1.6) f.growing = false;
-    } else {
-      f.y += f.vy;
-      f.vy += 0.5;
-      f.rotation += f.rotSpeed;
-    }
-    ctx.save();
-    ctx.translate(f.x, f.y);
-    ctx.rotate(f.rotation * Math.PI / 180);
-    ctx.scale(f.scale, f.scale);
-    ctx.font = "70px serif";
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    // 반짝임 효과: growing 단계에서 노란 후광
-    if (f.growing) {
-      ctx.shadowColor = 'gold';
-      ctx.shadowBlur = 30;
-    }
-    ctx.fillText(f.emoji, 0, 0);
-    ctx.restore();
-
-    // 점수 텍스트 뜨는 효과
-    if (f.scoreShown) {
-      f.scoreY -= 1.5;
-      f.scoreOpacity -= 0.02;
-      ctx.save();
-      ctx.globalAlpha = Math.max(f.scoreOpacity, 0);
-      ctx.fillStyle = '#FF6B35';
-      ctx.font = 'bold 36px sans-serif';
-      ctx.textAlign = 'center';
-      ctx.fillText('+10', f.x, f.scoreY - 50);
-      ctx.restore();
-      if (f.scoreOpacity <= 0) f.scoreShown = false;
-    }
-
-    // 화면 밖으로 나가거나 완전히 투명해지면 제거
-    if (f.y > canvas.height + 100) {
-      fallingBirds.splice(i, 1);
-    }
-  }
-}
-
-function drawLaughEffects() {
-  for (let i = laughEffects.length - 1; i >= 0; i--) {
-    const l = laughEffects[i];
-    l.life += 1;
-    l.y -= 1.2;
-    l.opacity = Math.max(1 - l.life / 40, 0);
-    ctx.save();
-    ctx.globalAlpha = l.opacity;
-    ctx.font = '40px serif';
-    ctx.textAlign = 'center';
-    ctx.fillText('😆 낄낄낄~', l.x, l.y);
-    ctx.restore();
-    if (l.life > 40) laughEffects.splice(i, 1);
-  }
-}
-
-// ---------- 게임 루프 ----------
-function updateBirds() {
-  for (let i = birds.length - 1; i >= 0; i--) {
-    const b = birds[i];
-    b.x += b.vx;
-    b.y += b.vy;
-    if (b.x < -100 || b.x > canvas.width + 100) {
-      birds.splice(i, 1);
-    }
-  }
-
-  spawnTimer++;
-  const progress = 1 - (timeLeft / startTime);
-  const currentInterval = Math.max(150 - progress * 110, 40); // 초반엔 뜸하게(150), 후반엔 촘촘하게(최소 40)
-  if (spawnTimer > currentInterval) {
-    spawnBird();
-    spawnTimer = 0;
-  }
-}
-
-function gameLoop() {
-  if (!gameRunning) return;
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-  drawBackgroundDecor();
-  updateBirds();
-  drawBirds();
-  drawFallingBirds();
-  drawLaughEffects();
-  drawHunter();
-  drawCrosshair();
-
-  document.getElementById('scoreDisplay').textContent = '점수: ' + score;
-
-  requestAnimationFrame(gameLoop);
-}
-
-// ---------- 타이머 ----------
-function startTimer() {
-  timerInterval = setInterval(() => {
-    timeLeft--;
-    const min = Math.floor(timeLeft / 60);
-    const sec = timeLeft % 60;
-    document.getElementById('timeDisplay').textContent = min + ':' + (sec < 10 ? '0' : '') + sec;
-    if (timeLeft <= 0) {
-      endGame();
-    }
-  }, 1000);
-}
-
-function endGame() {
-  gameRunning = false;
-  clearInterval(timerInterval);
-  document.getElementById('hud').classList.add('hidden');
-  document.getElementById('endScreen').classList.remove('hidden');
-  document.getElementById('endPlayerName').textContent = playerName + ' 님의 결과';
-  document.getElementById('finalScore').textContent = score + '점';
-}
-
-// ---------- 화면 전환 ----------
-document.getElementById('startBtn').addEventListener('click', () => {
-  const input = document.getElementById('nameInput').value.trim();
-  playerName = input === '' ? '참가자' : input;
-  document.getElementById('startScreen').classList.add('hidden');
-  document.getElementById('welcomeScreen').classList.remove('hidden');
-  document.getElementById('welcomeMsg').textContent = playerName + '님 오신 것을 환영합니다!';
-
-  setTimeout(() => {
-    document.getElementById('welcomeScreen').classList.add('hidden');
-    document.getElementById('hud').classList.remove('hidden');
-    document.getElementById('playerNameDisplay').textContent = playerName + ' 님';
-    document.getElementById('scoreDisplay').textContent = '점수: 0';
-    document.getElementById('timeDisplay').textContent = '2:30';
-
-    score = 0;
-    timeLeft = 150;
-    birds = [];
-    fallingBirds = [];
-    laughEffects = [];
-    spawnTimer = 0;
-    gameRunning = true;
-    startTimer();
-    gameLoop();
-  }, 2000);
-});
-
-document.getElementById('restartBtn').addEventListener('click', () => {
-  document.getElementById('endScreen').classList.add('hidden');
-  document.getElementById('startScreen').classList.remove('hidden');
-  document.getElementById('nameInput').value = '';
-});
-
-// 엔터키로도 시작 가능
-document.getElementById('nameInput').addEventListener('keypress', (e) => {
-  if (e.key === 'Enter') {
-    document.getElementById('startBtn').click();
-  }
-});
-</script>
+<body class="h-screen w-screen overflow-hidden flex flex-col items-center">
+
+    <header id="header" class="w-full max-w-5xl p-4 flex flex-wrap justify-between items-center gap-2 hidden z-50">
+        <div class="flex flex-wrap gap-2">
+            <button onclick="goBack()" class="px-4 py-2 md:px-6 md:py-3 bg-white text-gray-700 text-xl md:text-2xl rounded-full shadow-md hover:bg-gray-100 transition-colors border-2 border-gray-200 flex items-center gap-2">
+                ⬅️ 뒤로
+            </button>
+            <button onclick="goHome()" class="px-4 py-2 md:px-6 md:py-3 bg-white text-gray-700 text-xl md:text-2xl rounded-full shadow-md hover:bg-gray-100 transition-colors border-2 border-gray-200 flex items-center gap-2">
+                🏠 처음으로
+            </button>
+        </div>
+        <div class="flex flex-wrap gap-2">
+            <button id="font-size-btn" onclick="cycleFontSize()" class="px-4 py-2 md:px-6 md:py-3 bg-white text-gray-700 text-xl md:text-2xl rounded-full shadow-md hover:bg-gray-100 transition-colors border-2 border-gray-200 flex items-center gap-2">
+                🔍 글자 크게
+            </button>
+            <button id="bgm-toggle-btn" onclick="toggleBgMusic()" class="px-4 py-2 md:px-6 md:py-3 bg-white text-gray-700 text-xl md:text-2xl rounded-full shadow-md hover:bg-gray-100 transition-colors border-2 border-gray-200 flex items-center gap-2">
+                🔇 음악 끄기
+            </button>
+        </div>
+    </header>
+
+    <main id="app-content" class="w-full max-w-5xl flex-1 flex flex-col justify-center items-center p-4 relative overflow-y-auto no-scrollbar">
+        
+        <!-- 화면 1: 이름 입력 -->
+        <div id="view-name-input" class="flex flex-col items-center justify-center gap-8 w-full max-w-md h-full my-auto">
+            <h1 class="text-5xl md:text-7xl text-green-800 text-center drop-shadow-sm mb-4">
+                🌱 청춘 컴퓨터 교실
+            </h1>
+            <p class="text-2xl md:text-3xl text-gray-600 mb-2">어르신의 성함을 입력해 주세요</p>
+            <input type="text" id="user-name-field" class="w-full bg-white px-8 py-6 rounded-3xl shadow-inner border-4 border-green-300 text-4xl text-center focus:outline-none focus:border-green-500 transition-colors" placeholder="이름 입력" autocomplete="off" spellcheck="false">
+            <button onclick="startApp()" class="w-full py-6 bg-green-500 text-white text-4xl rounded-full shadow-lg hover:bg-green-600 transition-colors mt-4">
+                입장하기
+            </button>
+        </div>
+
+        <!-- 화면 2: 메인 선택 -->
+        <div id="view-main" class="hidden flex flex-col items-center gap-12 my-auto w-full">
+            <h1 class="text-5xl md:text-7xl text-green-800 text-center drop-shadow-sm mb-4">
+                🌱 청춘 컴퓨터 교실
+            </h1>
+            <p class="text-3xl text-gray-600 mb-8">무엇을 연습해 볼까요?</p>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6 w-full max-w-3xl px-4 pb-8">
+                <button onclick="goToTypeSelect()" class="w-full py-8 md:py-12 bg-white rounded-3xl shadow-xl flex flex-col items-center justify-center gap-4 hover:-translate-y-2 transition-transform border-4 border-green-400">
+                    <span class="text-7xl">⌨️</span>
+                    <span class="text-3xl text-gray-800">타자 연습</span>
+                </button>
+                <button onclick="goToMouseSelect()" class="w-full py-8 md:py-12 bg-white rounded-3xl shadow-xl flex flex-col items-center justify-center gap-4 hover:-translate-y-2 transition-transform border-4 border-blue-400">
+                    <span class="text-7xl">🖱️</span>
+                    <span class="text-3xl text-gray-800">마우스 (클릭)</span>
+                </button>
+                <button onclick="startDoubleClick()" class="w-full py-8 md:py-12 bg-white rounded-3xl shadow-xl flex flex-col items-center justify-center gap-4 hover:-translate-y-2 transition-transform border-4 border-purple-400">
+                    <span class="text-7xl">📦</span>
+                    <span class="text-3xl text-gray-800">더블클릭 연습</span>
+                </button>
+                <button onclick="startDragPractice()" class="w-full py-8 md:py-12 bg-white rounded-3xl shadow-xl flex flex-col items-center justify-center gap-4 hover:-translate-y-2 transition-transform border-4 border-orange-400">
+                    <span class="text-7xl">🗑️</span>
+                    <span class="text-3xl text-gray-800">끌어다 놓기</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- 화면 3: 마우스 선택 -->
+        <div id="view-mouse-select" class="hidden flex flex-col items-center gap-8 w-full py-8 my-auto">
+            <h2 class="text-4xl md:text-5xl text-blue-800 shrink-0">마우스 연습 종류를 선택하세요</h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 w-full max-w-3xl">
+                <button onclick="startMousePractice()" class="py-10 px-4 bg-white rounded-2xl shadow-lg hover:bg-blue-50 transition-colors border-4 border-blue-300 flex flex-col items-center gap-4 text-center">
+                    <span class="text-6xl text-blue-700">🏃‍♂️</span>
+                    <span class="text-3xl text-gray-800">친구 찾기</span>
+                    <span class="text-lg text-gray-500 break-keep">화면 곳곳에서 나타나는 친구 누르기</span>
+                </button>
+                <button onclick="startWhackAMole(1)" class="py-10 px-4 bg-white rounded-2xl shadow-lg hover:bg-yellow-50 transition-colors border-4 border-yellow-400 flex flex-col items-center gap-4 text-center">
+                    <span class="text-6xl">🔨</span>
+                    <span class="text-3xl text-gray-800">두더지 잡기</span>
+                    <span class="text-lg text-gray-500 break-keep">구멍에서 나오는 도라에몽 누르기 (3단계)</span>
+                </button>
+                <button onclick="startRightClickPractice()" class="py-10 px-4 bg-white rounded-2xl shadow-lg hover:bg-red-50 transition-colors border-4 border-red-300 flex flex-col items-center gap-4 text-center">
+                    <span class="text-6xl">🔔</span>
+                    <span class="text-3xl text-gray-800">오른쪽 클릭 연습</span>
+                    <span class="text-lg text-gray-500 break-keep">마우스 오른쪽 버튼 눌러보기</span>
+                </button>
+                <button onclick="startScrollPractice()" class="py-10 px-4 bg-white rounded-2xl shadow-lg hover:bg-teal-50 transition-colors border-4 border-teal-300 flex flex-col items-center gap-4 text-center">
+                    <span class="text-6xl">📜</span>
+                    <span class="text-3xl text-gray-800">화면 스크롤 연습</span>
+                    <span class="text-lg text-gray-500 break-keep">휠을 굴려 숨은 보물 찾기</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- 화면 4: 타자 연습 단계 선택 -->
+        <div id="view-type-select" class="hidden flex flex-col items-center gap-6 w-full py-8 my-auto">
+            <h2 class="text-4xl md:text-5xl text-green-800 shrink-0">타자 연습 단계를 선택하세요</h2>
+            <label class="flex items-center gap-3 text-xl md:text-2xl text-gray-600 bg-white px-6 py-3 rounded-full shadow-md border-2 border-gray-200 cursor-pointer select-none">
+                <input type="checkbox" id="shuffle-toggle" class="w-6 h-6 accent-green-500" checked>
+                단어를 무작위 순서로 연습하기
+            </label>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 w-full max-w-3xl pb-8">
+                <button onclick="startTypingPractice(0)" class="w-full py-6 bg-white rounded-2xl shadow-lg hover:bg-gray-50 transition-colors border-4 border-gray-300 flex flex-col items-center gap-2">
+                    <span class="text-3xl text-gray-700">0단계 (자음 · 모음)</span>
+                    <span class="text-lg text-gray-500">완전 처음이신 분들을 위한 자판 익히기</span>
+                </button>
+                <button onclick="startTypingPractice(1)" class="w-full py-6 bg-white rounded-2xl shadow-lg hover:bg-green-50 transition-colors border-4 border-green-300 flex flex-col items-center gap-2">
+                    <span class="text-3xl text-green-700">1단계 (쉬운 낱말)</span>
+                    <span class="text-lg text-gray-500">짧고 쉬운 단어 15개 연습</span>
+                </button>
+                <button onclick="startTypingPractice(2)" class="w-full py-6 bg-white rounded-2xl shadow-lg hover:bg-teal-50 transition-colors border-4 border-teal-300 flex flex-col items-center gap-2">
+                    <span class="text-3xl text-teal-700">2단계 (복잡한 낱말)</span>
+                    <span class="text-lg text-gray-500">받침, 쌍자음 단어 15개 연습</span>
+                </button>
+                <button onclick="startTypingPractice(3)" class="w-full py-6 bg-white rounded-2xl shadow-lg hover:bg-blue-50 transition-colors border-4 border-blue-300 flex flex-col items-center gap-2">
+                    <span class="text-3xl text-blue-700">3단계 (짧은 문장)</span>
+                    <span class="text-lg text-gray-500">간단한 일상 인사말 10개 연습</span>
+                </button>
+                <button onclick="startTypingPractice(4)" class="w-full py-6 bg-white rounded-2xl shadow-lg hover:bg-indigo-50 transition-colors border-4 border-indigo-300 flex flex-col items-center gap-2">
+                    <span class="text-3xl text-indigo-700">4단계 (긴 문장)</span>
+                    <span class="text-lg text-gray-500">속담과 긍정적인 문장 10개 연습</span>
+                </button>
+                <button onclick="startTypingPractice(5)" class="w-full py-6 bg-white rounded-2xl shadow-lg hover:bg-purple-50 transition-colors border-4 border-purple-300 flex flex-col items-center gap-2">
+                    <span class="text-3xl text-purple-700">5단계 (실전 문장)</span>
+                    <span class="text-lg text-gray-500">기호 포함, 디지털 상식 10개 연습</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- 화면 5: 타자 연습 뷰 -->
+        <div id="view-typing" class="hidden flex flex-col items-center w-full max-w-3xl my-auto">
+            <div class="w-full bg-white p-6 rounded-2xl shadow-md mb-12 flex flex-col gap-4">
+                <div class="flex justify-between items-end">
+                    <span class="text-2xl text-gray-600" id="typing-level-text">1단계</span>
+                    <span class="text-3xl text-green-600" id="typing-progress-text">0 / 15</span>
+                </div>
+                <div class="w-full h-8 bg-gray-200 rounded-full overflow-hidden">
+                    <div id="typing-progress-bar" class="h-full bg-green-500 transition-all duration-300" style="width: 0%;"></div>
+                </div>
+            </div>
+
+            <div class="bg-white px-10 py-8 rounded-3xl shadow-lg border-2 border-gray-100 mb-8 w-full text-center overflow-hidden">
+                <!-- 오타 표시를 위해 span 태그들로 동적으로 채워질 공간 -->
+                <p id="typing-target" class="text-4xl md:text-5xl text-gray-800 tracking-wider break-keep leading-tight transition-colors duration-200">단어</p>
+            </div>
+
+            <input type="text" id="typing-input" class="w-full bg-white px-10 py-6 rounded-3xl shadow-inner border-4 border-gray-300 text-3xl md:text-4xl text-center focus:outline-none focus:border-green-500 transition-colors" placeholder="여기에 따라 치세요" autocomplete="off" spellcheck="false">
+            <p id="typing-hint" class="text-xl text-gray-500 mt-6 h-8 text-center">틀린 글자는 <span class="text-red-500 font-bold">빨간색</span>으로 표시됩니다. 천천히 정확하게 쳐보세요.</p>
+        </div>
+
+        <!-- 화면 6: 마우스 친구 찾기 뷰 -->
+        <div id="view-mouse" class="hidden flex flex-col items-center w-full h-full relative">
+            <div class="w-full bg-white p-4 md:p-6 rounded-2xl shadow-md flex flex-col gap-4 z-10">
+                <div class="flex justify-between items-end">
+                    <span class="text-2xl text-gray-600">반가운 친구 찾기!</span>
+                    <span class="text-3xl text-blue-600" id="mouse-progress-text">0 / 15</span>
+                </div>
+                <div class="w-full h-8 bg-gray-200 rounded-full overflow-hidden">
+                    <div id="mouse-progress-bar" class="h-full bg-blue-500 transition-all duration-300" style="width: 0%;"></div>
+                </div>
+            </div>
+            <div id="mouse-game-area" class="flex-1 w-full mt-4 relative bg-blue-50 border-4 border-dashed border-blue-200 rounded-3xl overflow-hidden cursor-crosshair">
+            </div>
+        </div>
+
+        <!-- 화면 7: 두더지 잡기 뷰 -->
+        <div id="view-whack-a-mole" class="hidden flex flex-col items-center w-full h-full relative pb-8">
+            <div class="w-full bg-white p-4 md:p-6 rounded-2xl shadow-md flex flex-col gap-4 z-10">
+                <div class="flex justify-between items-end">
+                    <span class="text-2xl text-gray-600 font-bold" id="mole-level-text">1단계 (구멍 9개)</span>
+                    <span class="text-3xl text-yellow-600" id="mole-progress-text">0 / 10</span>
+                </div>
+                <div class="w-full h-8 bg-gray-200 rounded-full overflow-hidden">
+                    <div id="mole-progress-bar" class="h-full bg-yellow-500 transition-all duration-300" style="width: 0%;"></div>
+                </div>
+            </div>
+            
+            <div id="mole-game-board" class="flex-1 w-full mt-4 flex items-center justify-center overflow-auto no-scrollbar">
+                <!-- 3단계에 따라 구멍 개수가 동적으로 바뀔 그리드 -->
+                <div id="mole-grid" class="grid bg-[#8B4513] p-4 md:p-8 rounded-3xl border-8 border-[#5C2E0C] shadow-[inset_0_10px_20px_rgba(0,0,0,0.5)]">
+                </div>
+            </div>
+        </div>
+
+        <!-- 화면 8: 더블클릭 연습 뷰 -->
+        <div id="view-double-click" class="hidden flex flex-col items-center w-full h-full relative pb-8">
+            <div class="w-full bg-white p-4 md:p-6 rounded-2xl shadow-md flex flex-col gap-4 z-10 shrink-0">
+                <div class="flex justify-between items-end">
+                    <span class="text-2xl text-gray-600 font-bold">보물상자 열기 (더블클릭)</span>
+                    <span class="text-3xl text-purple-600" id="dc-progress-text">0 / 10</span>
+                </div>
+                <div class="w-full h-8 bg-gray-200 rounded-full overflow-hidden">
+                    <div id="dc-progress-bar" class="h-full bg-purple-500 transition-all duration-300" style="width: 0%;"></div>
+                </div>
+            </div>
+            <div class="flex-1 w-full mt-8 flex flex-col items-center justify-center">
+                <p id="dc-hint" class="text-2xl md:text-3xl text-gray-500 mb-12 h-8 text-center break-keep">상자를 빠르게 두 번(더블클릭) 눌러보세요!</p>
+                <div id="dc-chest" class="text-[120px] md:text-[150px] cursor-pointer transition-transform select-none touch-manipulation hover:scale-105 active:scale-95 flex items-center justify-center w-64 h-64" style="line-height: 1;">
+                    📦
+                </div>
+            </div>
+        </div>
+
+        <!-- 화면 9: 드래그 앤 드롭 뷰 -->
+        <div id="view-drag-drop" class="hidden flex flex-col items-center w-full h-full relative pb-8">
+            <div class="w-full bg-white p-4 md:p-6 rounded-2xl shadow-md flex flex-col gap-4 z-10 shrink-0">
+                <div class="flex justify-between items-end">
+                    <span class="text-2xl text-gray-600 font-bold">방 정리하기 (끌어다 놓기)</span>
+                    <span class="text-3xl text-orange-600" id="drag-progress-text">0 / 5</span>
+                </div>
+                <div class="w-full h-8 bg-gray-200 rounded-full overflow-hidden">
+                    <div id="drag-progress-bar" class="h-full bg-orange-500 transition-all duration-300" style="width: 0%;"></div>
+                </div>
+            </div>
+            
+            <div id="drag-game-area" class="flex-1 w-full mt-4 relative bg-orange-50 border-4 border-dashed border-orange-300 rounded-3xl overflow-hidden touch-none shadow-inner">
+                <!-- 쓰레기통 -->
+                <div id="drag-bin" class="absolute bottom-6 left-1/2 -translate-x-1/2 text-[100px] z-0 transition-transform flex flex-col items-center">
+                    🗑️
+                    <span class="text-lg md:text-xl text-gray-700 mt-4 bg-white/90 px-6 py-2 rounded-full border-2 border-orange-200 shadow-sm font-bold tracking-wider break-keep text-center w-max">
+                        이곳으로 쓰레기를 끄세요
+                    </span>
+                </div>
+            </div>
+        </div>
+
+        <!-- 화면 10: 오른쪽 클릭 연습 -->
+        <div id="view-right-click" class="hidden flex flex-col items-center w-full h-full relative pb-8">
+            <div class="w-full bg-white p-4 md:p-6 rounded-2xl shadow-md flex flex-col gap-4 z-10 shrink-0">
+                <div class="flex justify-between items-end">
+                    <span class="text-2xl text-gray-600 font-bold">오른쪽 클릭 연습</span>
+                    <span class="text-3xl text-red-600" id="rc-progress-text">0 / 10</span>
+                </div>
+                <div class="w-full h-8 bg-gray-200 rounded-full overflow-hidden">
+                    <div id="rc-progress-bar" class="h-full bg-red-500 transition-all duration-300" style="width: 0%;"></div>
+                </div>
+            </div>
+            <div class="flex-1 w-full mt-8 flex flex-col items-center justify-center">
+                <p id="rc-hint" class="text-2xl md:text-3xl text-gray-500 mb-12 h-8 text-center break-keep">종을 마우스 오른쪽 버튼으로 눌러보세요!</p>
+                <div id="rc-target" class="text-[120px] md:text-[150px] cursor-pointer select-none touch-manipulation transition-transform flex items-center justify-center w-64 h-64">
+                    🔔
+                </div>
+            </div>
+        </div>
+
+        <!-- 화면 11: 스크롤 연습 -->
+        <div id="view-scroll" class="hidden flex flex-col items-center w-full h-full relative pb-8">
+            <div class="w-full bg-white p-4 md:p-6 rounded-2xl shadow-md flex flex-col gap-4 z-10 shrink-0">
+                <div class="flex justify-between items-end">
+                    <span class="text-2xl text-gray-600 font-bold">화면 스크롤 연습</span>
+                    <span class="text-3xl text-teal-600" id="scroll-progress-text">0 / 5</span>
+                </div>
+                <div class="w-full h-8 bg-gray-200 rounded-full overflow-hidden">
+                    <div id="scroll-progress-bar" class="h-full bg-teal-500 transition-all duration-300" style="width: 0%;"></div>
+                </div>
+            </div>
+            <p class="text-xl md:text-2xl text-gray-500 mt-4 mb-2 text-center break-keep">마우스 휠을 아래로 굴려서 선물 상자를 찾아 눌러보세요!</p>
+            <div id="scroll-area" class="flex-1 w-full mt-2 relative bg-teal-50 border-4 border-dashed border-teal-300 rounded-3xl overflow-y-scroll">
+                <div id="scroll-content" class="w-full flex flex-col items-center"></div>
+            </div>
+        </div>
+
+        <div id="view-win" class="hidden flex flex-col items-center justify-center gap-8 text-center absolute inset-0 bg-white/95 z-50">
+            <div class="text-9xl animate-bounce">🎉</div>
+            <h1 id="win-message" class="text-5xl md:text-7xl text-red-500 drop-shadow-md break-keep">5년 젊어지셨습니다!</h1>
+            <p id="win-detail" class="text-2xl md:text-3xl text-purple-600 break-keep hidden"></p>
+            <p class="text-3xl md:text-4xl text-gray-700 mt-4">정말 훌륭하게 해내셨어요!</p>
+            <button onclick="goHome()" class="mt-12 px-12 py-6 bg-green-500 text-white text-4xl rounded-full shadow-lg hover:bg-green-600 transition-colors">
+                다시 하기
+            </button>
+        </div>
+
+    </main>
+
+    <script>
+        // 전역 상태 변수들
+        let userName = "어르신"; 
+        let currentLevel = 1;
+        
+        let typingData = [];
+        let currentIndex = 0;
+        let totalItems = 0;
+        let isReviewRound = false;
+        let mistakeIndexes = new Set();
+        let currentItemHadMistake = false;
+        let mistakeSummaryCount = 0;
+        
+        let mouseHits = 0;
+        let mouseTargetCount = 15; 
+        let mouseTimer = null;
+
+        let rcHits = 0;
+        let rcTargetCount = 10;
+
+        let scrollHits = 0;
+        let scrollTargetCount = 5;
+
+        let moleLevel = 1;
+        let moleHits = 0;
+        let moleTargetCount = 10;
+        let moleTimer = null;
+        let activeMoleHole = -1;
+        let isMoleGameRunning = false;
+
+        let synth;
+        let isAudioInitialized = false;
+
+        async function initAudio() {
+            if (isAudioInitialized) return;
+            try {
+                await Tone.start();
+                synth = new Tone.PolySynth(Tone.Synth, {
+                    oscillator: { type: "triangle" },
+                    envelope: { attack: 0.01, decay: 0.1, sustain: 0.1, release: 0.5 }
+                }).toDestination();
+                isAudioInitialized = true;
+            } catch (error) {
+                console.log("오디오 권한 거부 또는 에러 발생. 무음으로 진행됩니다.", error);
+            }
+        }
+
+        function playTypeSound() { if (synth) synth.triggerAttackRelease("C5", "32n", "+0", 0.3); }
+        function playErrorSound() { if (synth) synth.triggerAttackRelease("C3", "16n", "+0", 0.5); }
+        function playClickSound() { if (synth) synth.triggerAttackRelease(["E5", "G5"], "16n", "+0", 0.4); }
+        function playWinSound() {
+            if (synth) {
+                const now = Tone.now();
+                synth.triggerAttackRelease("C4", "8n", now);
+                synth.triggerAttackRelease("E4", "8n", now + 0.2);
+                synth.triggerAttackRelease("G4", "8n", now + 0.4);
+                synth.triggerAttackRelease("C5", "2n", now + 0.6);
+            }
+        }
+
+        let bgMelodySynth, bgBassSynth, bgMelodySeq, bgBassSeq;
+        let isBgMusicOn = true;
+        let bgMusicReady = false;
+
+        function initBgMusic() {
+            if (bgMusicReady) return;
+            try {
+                bgMelodySynth = new Tone.Synth({
+                    oscillator: { type: "sawtooth" },
+                    envelope: { attack: 0.02, decay: 0.15, sustain: 0.25, release: 0.3 }
+                }).toDestination();
+                bgMelodySynth.volume.value = -16;
+
+                bgBassSynth = new Tone.Synth({
+                    oscillator: { type: "triangle" },
+                    envelope: { attack: 0.01, decay: 0.2, sustain: 0.2, release: 0.25 }
+                }).toDestination();
+                bgBassSynth.volume.value = -12;
+
+                const melodyPattern = [
+                    "E4", "E4", "G4", "E4", "C4", null, "D4", "E4",
+                    "G4", "G4", "A4", "G4", "E4", null, "D4", "C4",
+                    "E4", "G4", "A4", "G4", "E4", "D4", "C4", null,
+                    "D4", "E4", "D4", "C4", "D4", null, null, null
+                ];
+
+                const bassPattern = [
+                    "C3", "G3", "C3", "G3", "F3", "C3", "F3", "C3",
+                    "G3", "D3", "G3", "D3", "C3", "G3", "C3", "G3"
+                ];
+
+                bgMelodySeq = new Tone.Sequence((time, note) => {
+                    if (note) bgMelodySynth.triggerAttackRelease(note, "16n", time);
+                }, melodyPattern, "8n");
+
+                bgBassSeq = new Tone.Sequence((time, note) => {
+                    bgBassSynth.triggerAttackRelease(note, "8n", time);
+                }, bassPattern, "4n");
+
+                Tone.Transport.bpm.value = 128;
+                Tone.Transport.swing = 0.2;
+                Tone.Transport.swingSubdivision = "8n";
+
+                bgMusicReady = true;
+            } catch(e) {}
+        }
+
+        async function startBgMusic() {
+            if (!isBgMusicOn) return;
+            await initAudio();
+            initBgMusic();
+            if (Tone.Transport.state !== "started") Tone.Transport.start();
+            if (bgMelodySeq && bgMelodySeq.state !== "started") bgMelodySeq.start(0);
+            if (bgBassSeq && bgBassSeq.state !== "started") bgBassSeq.start(0);
+        }
+
+        function stopBgMusic() {
+            if (bgMelodySeq) bgMelodySeq.stop();
+            if (bgBassSeq) bgBassSeq.stop();
+            Tone.Transport.stop();
+        }
+
+        async function toggleBgMusic() {
+            isBgMusicOn = !isBgMusicOn;
+            const btn = document.getElementById('bgm-toggle-btn');
+            if (isBgMusicOn) {
+                if (btn) btn.innerText = "🔇 음악 끄기";
+                await startBgMusic();
+            } else {
+                if (btn) btn.innerText = "🎵 음악 켜기";
+                stopBgMusic();
+            }
+        }
+
+        async function startApp() {
+            const nameInput = document.getElementById('user-name-field').value.trim();
+            if (nameInput !== "") {
+                userName = nameInput;
+            } else {
+                userName = "어르신";
+            }
+            
+            try {
+                await initAudio(); 
+                playClickSound();
+            } catch(e) {
+                console.warn("오디오 초기화 오류 발생, 멈추지 않고 진행합니다.", e);
+            }
+
+            hideAllViews();
+            document.getElementById('view-main').classList.remove('hidden');
+            document.getElementById('header').classList.remove('hidden');
+        }
+
+        function hideAllViews() {
+            mistakeSummaryCount = 0;
+            const views = ['view-name-input', 'view-main', 'view-type-select', 'view-mouse-select', 'view-typing', 'view-mouse', 'view-whack-a-mole', 'view-double-click', 'view-drag-drop', 'view-right-click', 'view-scroll', 'view-win'];
+            views.forEach(id => {
+                const el = document.getElementById(id);
+                if(el) el.classList.add('hidden');
+            });
+        }
+
+        function goHome() {
+            hideAllViews();
+            document.getElementById('view-main').classList.remove('hidden');
+            document.getElementById('header').classList.remove('hidden');
+            clearTimeout(mouseTimer);
+            clearMoleGame();
+            stopBgMusic();
+            
+            const typingInputEl = document.getElementById('typing-input');
+            if (typingInputEl) {
+                typingInputEl.value = "";
+                typingInputEl.disabled = false;
+                clearTypingError();
+            }
+        }
+
+        // 각 화면의 '부모' 화면 지도 - 뒤로가기 버튼이 사용
+        const backMap = {
+            'view-type-select': 'view-main',
+            'view-mouse-select': 'view-main',
+            'view-typing': 'view-type-select',
+            'view-mouse': 'view-mouse-select',
+            'view-whack-a-mole': 'view-mouse-select',
+            'view-right-click': 'view-mouse-select',
+            'view-scroll': 'view-mouse-select',
+            'view-double-click': 'view-main',
+            'view-drag-drop': 'view-main',
+        };
+
+        function goBack() {
+            let current = null;
+            for (const id in backMap) {
+                const el = document.getElementById(id);
+                if (el && !el.classList.contains('hidden')) { current = id; break; }
+            }
+            const target = current ? backMap[current] : 'view-main';
+
+            clearTimeout(mouseTimer);
+            clearMoleGame();
+
+            const typingInputEl = document.getElementById('typing-input');
+            if (typingInputEl) {
+                typingInputEl.value = "";
+                typingInputEl.disabled = false;
+                clearTypingError();
+            }
+
+            hideAllViews();
+            document.getElementById(target).classList.remove('hidden');
+            document.getElementById('header').classList.remove('hidden');
+        }
+
+        // 글자 크기 조절 (시력이 약한 어르신을 위한 기능)
+        let fontSizeLevel = 0;
+        const fontSizeSteps = ['100%', '115%', '130%'];
+        const fontSizeLabels = ['🔍 보통 글씨', '🔍 큰 글씨', '🔍 아주 큰 글씨'];
+        function cycleFontSize() {
+            fontSizeLevel = (fontSizeLevel + 1) % fontSizeSteps.length;
+            document.documentElement.style.fontSize = fontSizeSteps[fontSizeLevel];
+            const btn = document.getElementById('font-size-btn');
+            if (btn) btn.innerText = fontSizeLabels[fontSizeLevel];
+        }
+
+        async function goToTypeSelect() {
+            try { await initAudio(); playClickSound(); } catch(e){}
+            hideAllViews();
+            document.getElementById('view-type-select').classList.remove('hidden');
+            document.getElementById('header').classList.remove('hidden');
+        }
+
+        async function goToMouseSelect() {
+            try { await initAudio(); playClickSound(); } catch(e){}
+            hideAllViews();
+            document.getElementById('view-mouse-select').classList.remove('hidden');
+            document.getElementById('header').classList.remove('hidden');
+        }
+
+        function shuffle(array) { return array.sort(() => Math.random() - 0.5); }
+
+        // 데이터 대폭 확장하여 반복을 줄임
+        const typingLevelData = {
+            0: { title: "0단계 (자음 · 모음)", count: 15, data: ["ㄱ", "ㄴ", "ㄷ", "ㄹ", "ㅁ", "ㅂ", "ㅅ", "ㅇ", "ㅈ", "ㅊ", "ㅋ", "ㅌ", "ㅍ", "ㅎ", "ㅏ", "ㅑ", "ㅓ", "ㅕ", "ㅗ", "ㅛ", "ㅜ", "ㅠ", "ㅡ", "ㅣ"] },
+            1: { title: "1단계 (쉬운 낱말)", count: 15, data: ["건강", "행복", "가족", "사랑", "미소", "친구", "산책", "기쁨", "운동", "식사", "웃음", "청춘", "배움", "열정", "도전", "나무", "하늘", "바다", "마음", "평화", "햇살", "바람", "구름", "별빛", "달빛", "지혜", "나눔", "희망", "감사", "기억", "사진", "노래", "음악", "그림", "여행", "고향", "시골", "도시", "학교", "학생"] },
+            2: { title: "2단계 (복잡한 낱말)", count: 15, data: ["스마트폰", "인공지능", "복지관", "할아버지", "할머니", "따뜻함", "꽃가루", "쑥떡", "짬뽕", "반짝반짝", "알록달록", "동그라미", "지하철", "고속버스", "컴퓨터", "마우스", "키보드", "유튜브", "카카오톡", "비밀번호", "병원비", "약국", "건강검진", "혈압계", "당뇨병", "관절염", "영양제", "돋보기", "보청기", "노인정", "경로당", "동사무소", "주민센터", "요양원", "요양병원", "간병인", "보호자", "간호사", "의사선생님"] },
+            3: { title: "3단계 (짧은 문장)", count: 10, data: ["안녕하세요.", "반갑습니다.", "식사 하셨나요?", "건강이 최고입니다.", "좋은 하루 보내세요.", "날씨가 참 좋습니다.", "수고 많으셨습니다.", "감사합니다.", "사랑합니다.", "조심해서 가세요.", "늘 웃음 가득하세요.", "오늘도 화이팅!", "잘 주무셨어요?", "맛있게 드세요.", "오랜만입니다.", "또 뵙겠습니다.", "안녕히 계세요.", "안녕히 가세요.", "고맙습니다.", "미안합니다.", "괜찮습니다.", "수고하세요.", "축하합니다.", "새해 복 많이 받으세요.", "건강하세요."] },
+            4: { title: "4단계 (긴 문장)", count: 10, data: ["웃으면 복이 옵니다.", "가는 말이 고와야 오는 말이 곱다.", "시작이 반이다.", "천 리 길도 한 걸음부터.", "세월이 참 빠릅니다.", "새로운 것을 배우는 것은 즐겁습니다.", "마음이 편안해야 몸도 건강합니다.", "오늘도 행복한 하루 되세요.", "긍정적인 생각은 보약과 같습니다.", "규칙적인 운동이 중요합니다.", "아침 일찍 일어나는 새가 벌레를 잡는다.", "티끌 모아 태산이다.", "소 잃고 외양간 고친다.", "말 한마디에 천 냥 빚도 갚는다.", "발 없는 말이 천 리 간다.", "백지장도 맞들면 낫다.", "돌다리도 두들겨 보고 건너라.", "윗물이 맑아야 아랫물이 맑다.", "젊어서 고생은 사서도 한다.", "가는 정이 있어야 오는 정이 있다."] },
+            5: { title: "5단계 (실전 문장)", count: 10, data: ["인생은 60부터! 새로운 시작을 응원합니다.", "매일 물을 8잔 마시면 건강에 좋습니다.", "디지털 시대, 배움에는 끝이 없습니다.", "비밀번호는 '영어+숫자+기호'로 만드세요.", "모르는 사람의 문자 링크는 클릭하지 마세요!", "나이는 숫자에 불과하다는 것을 잊지 마세요.", "건강한 식단과 적당한 휴식이 장수의 비결입니다.", "100세 시대, 활기찬 노후를 준비합시다.", "궁금한 점은 언제든 복지관 선생님께 물어보세요.", "여러분들의 열정적인 도전을 항상 존경합니다!", "이메일 주소는 아이디@도메인.com 형태로 씁니다.", "카카오톡 - 친구 - 검색 순서로 눌러 보세요.", "보이스피싱 전화를 받으면 당황하지 말고 끊으세요.", "스미싱 문자에 포함된 인터넷 주소는 누르지 마세요.", "공공기관은 전화로 돈을 요구하지 않습니다.", "개인정보는 누구에게도 함부로 알려주지 마세요.", "인터넷 쇼핑몰에서 물건을 살 때는 주의하세요.", "스마트폰 글자 크기를 크게 설정해서 보세요.", "와이파이를 연결하면 데이터를 아낄 수 있습니다.", "사진을 찍어서 가족들과 카카오톡으로 공유해보세요."] }
+        };
+
+        async function startTypingPractice(level) {
+            try { await initAudio(); playClickSound(); await startBgMusic(); } catch(e){}
+            currentLevel = level;
+            hideAllViews();
+            document.getElementById('view-typing').classList.remove('hidden');
+            document.getElementById('header').classList.remove('hidden');
+
+            const levelInfo = typingLevelData[level];
+            totalItems = levelInfo.count;
+            document.getElementById('typing-level-text').innerText = levelInfo.title;
+
+            const shuffleToggle = document.getElementById('shuffle-toggle');
+            // 이제 기본적으로 항상 섞어서 나오도록 처리 (다양성 보장)
+            const wantShuffle = shuffleToggle ? shuffleToggle.checked : true; 
+            
+            if (wantShuffle) typingData = shuffle([...levelInfo.data]).slice(0, totalItems);
+            else typingData = [...levelInfo.data].slice(0, totalItems);
+
+            currentIndex = 0;
+            isReviewRound = false;
+            mistakeIndexes = new Set();
+            mistakeSummaryCount = 0;
+            
+            updateTypingUI();
+            
+            const inputEl = document.getElementById('typing-input');
+            inputEl.value = "";
+            inputEl.disabled = false;
+            clearTypingError();
+            setTimeout(() => inputEl.focus(), 100);
+        }
+
+        // 입력된 텍스트와 정답을 비교하여 화면에 오타를 그려주는 함수
+        function renderTargetText(targetStr, inputStr, isComposing) {
+            let html = "";
+            for (let i = 0; i < targetStr.length; i++) {
+                let targetChar = targetStr[i];
+                let inputChar = inputStr[i];
+                
+                if (i < inputStr.length) {
+                    if (targetChar === inputChar) {
+                        // 일치하는 글자
+                        html += `<span class="char-correct">${targetChar}</span>`;
+                    } else {
+                        // 불일치 처리
+                        let charCode = inputStr.charCodeAt(i);
+                        let isJamo = (charCode >= 0x3131 && charCode <= 0x3163);
+
+                        // 한글 조합 중이거나 단순 자음/모음만 입력된 마지막 글자의 경우엔 
+                        // "오타"라기보다 "입력중"으로 취급하여 주황색 밑줄로 부드럽게 표시
+                        if ((isComposing || isJamo) && i === inputStr.length - 1) {
+                            html += `<span class="char-composing">${targetChar}</span>`;
+                        } else {
+                            // 명확히 틀린 글자는 빨간색 바탕과 밑줄로 시각적 강조
+                            html += `<span class="char-wrong">${targetChar}</span>`;
+                        }
+                    }
+                } else {
+                    // 아직 입력하지 않은 글자
+                    html += `<span class="char-default">${targetChar}</span>`;
+                }
+            }
+            document.getElementById('typing-target').innerHTML = html;
+        }
+
+        function updateTypingUI() {
+            document.getElementById('typing-progress-text').innerText = `${currentIndex} / ${totalItems}`;
+            document.getElementById('typing-progress-bar').style.width = `${(currentIndex / totalItems) * 100}%`;
+
+            if (currentIndex >= totalItems) {
+                if (!isReviewRound && mistakeIndexes.size > 0) {
+                    startReviewRound();
+                } else {
+                    showWinScreen();
+                }
+                return;
+            }
+
+            currentItemHadMistake = false;
+            const target = typingData[currentIndex];
+            
+            // 새 단어가 나올 때 기본 렌더링
+            renderTargetText(target, "", false);
+
+            const inputEl = document.getElementById('typing-input');
+            inputEl.value = "";
+            inputEl.maxLength = target.length + 3;
+            clearTypingError();
+        }
+
+        // 틀렸던 단어만 모아서 한 번 더 연습시키는 복습 라운드
+        function startReviewRound() {
+            isReviewRound = true;
+            mistakeSummaryCount = mistakeIndexes.size;
+            typingData = Array.from(mistakeIndexes).map(i => typingData[i]);
+            totalItems = typingData.length;
+            currentIndex = 0;
+            mistakeIndexes = new Set();
+            document.getElementById('typing-level-text').innerText = "복습 라운드 (틀렸던 단어 다시 쓰기)";
+            updateTypingUI();
+        }
+
+        const typingInputEl = document.getElementById('typing-input');
+        
+        typingInputEl.addEventListener('input', function(e) {
+            playTypeSound();
+            handleTypingLogic(this, e.isComposing);
+        });
+
+        typingInputEl.addEventListener('compositionend', function(e) {
+            handleTypingLogic(this, false);
+        });
+
+        function handleTypingLogic(inputEl, isComposing) {
+            const target = typingData[currentIndex];
+            const input = inputEl.value;
+
+            // 실시간으로 오타 여부를 분석하여 타겟 텍스트 영역에 색상 표시
+            renderTargetText(target, input, isComposing);
+
+            // 정답을 정확히 입력한 경우 (입력 중이더라도 즉시 통과)
+            if (input === target) {
+                inputEl.classList.remove('error-shake');
+                inputEl.style.backgroundColor = '#ecfdf5';
+                if (!inputEl.disabled) {
+                    inputEl.disabled = true; // 중복 통과 방지
+                    setTimeout(() => {
+                        inputEl.disabled = false;
+                        inputEl.style.backgroundColor = 'white';
+                        currentIndex++;
+                        updateTypingUI();
+                        inputEl.focus();
+                    }, 400);
+                }
+                return;
+            }
+
+            if (input.length === 0) {
+                clearTypingError();
+                return;
+            }
+
+            // 한글 조합 중일 때는 오류를 부드럽게 넘김 (길이가 너무 긴 경우만 체크)
+            if (isComposing) {
+                if (input.length > target.length + 1) showTypingError(inputEl);
+                else clearTypingError();
+                return;
+            }
+
+            // 글자 조립이 끝났거나 조합 중이 아닐 때 정확성 검사
+            let isValid = true;
+            if (input.length > target.length) {
+                isValid = false;
+            } else {
+                for (let i = 0; i < input.length; i++) {
+                    const charCode = input.charCodeAt(i);
+                    const isJamo = (charCode >= 0x3131 && charCode <= 0x3163);
+                    
+                    // 단일 자음/모음(지우다 남은 것 등)은 에러로 취급하지 않음
+                    if (isJamo) continue; 
+
+                    // 완전히 완성된 글자가 목표 글자와 다르면 오타
+                    if (input[i] !== target[i]) {
+                        isValid = false;
+                        break;
+                    }
+                }
+            }
+
+            if (!isValid) {
+                showTypingError(inputEl);
+            } else {
+                clearTypingError();
+            }
+        }
+
+        function showTypingError(inputEl) {
+            playErrorSound();
+            inputEl.classList.add('error-shake');
+            document.getElementById('typing-hint').innerHTML = "앗! 오타가 있습니다. <span class='text-red-600 font-bold'>빨간색</span>으로 표시된 곳을 지우고 다시 쳐보세요.";
+            document.getElementById('typing-hint').classList.add('text-red-500');
+            if (!currentItemHadMistake) {
+                currentItemHadMistake = true;
+                mistakeIndexes.add(currentIndex);
+            }
+            // 부드러운 교육적 효과를 위해 텍스트를 강제로 지우지 않고 백스페이스 사용을 유도합니다.
+            setTimeout(() => inputEl.classList.remove('error-shake'), 300);
+        }
+
+        function clearTypingError() {
+            const inputEl = document.getElementById('typing-input');
+            const hint = document.getElementById('typing-hint');
+            if (inputEl) inputEl.classList.remove('error-shake');
+            if (hint) {
+                hint.innerHTML = "틀린 글자는 <span class='text-red-500 font-bold'>빨간색</span>으로 표시됩니다. 천천히 정확하게 쳐보세요.";
+                hint.classList.remove('text-red-500');
+            }
+        }
+
+        const doraemonSvg = `
+            <svg viewBox="0 0 100 100" class="w-full h-full drop-shadow-lg transition-transform duration-200">
+                <circle cx="50" cy="45" r="40" fill="#0EA5E9"/>
+                <circle cx="50" cy="52" r="32" fill="white"/>
+                <circle cx="41" cy="30" r="10" fill="white" stroke="#0EA5E9" stroke-width="1"/>
+                <circle cx="59" cy="30" r="10" fill="white" stroke="#0EA5E9" stroke-width="1"/>
+                <circle cx="44" cy="30" r="3" fill="black"/>
+                <circle cx="56" cy="30" r="3" fill="black"/>
+                <circle cx="50" cy="40" r="6" fill="#EF4444"/>
+                <circle cx="48" cy="38" r="2" fill="white" opacity="0.8"/>
+                <path d="M50 46 V60" stroke="black" stroke-width="1.5"/>
+                <path d="M35 50 Q50 65 65 50" stroke="black" stroke-width="1.5" fill="none"/>
+                <line x1="25" y1="42" x2="40" y2="45" stroke="black" stroke-width="1.5" stroke-linecap="round"/>
+                <line x1="22" y1="49" x2="38" y2="49" stroke="black" stroke-width="1.5" stroke-linecap="round"/>
+                <line x1="25" y1="56" x2="40" y2="53" stroke="black" stroke-width="1.5" stroke-linecap="round"/>
+                <line x1="75" y1="42" x2="60" y2="45" stroke="black" stroke-width="1.5" stroke-linecap="round"/>
+                <line x1="78" y1="49" x2="62" y2="49" stroke="black" stroke-width="1.5" stroke-linecap="round"/>
+                <line x1="75" y1="56" x2="60" y2="53" stroke="black" stroke-width="1.5" stroke-linecap="round"/>
+                <path d="M20 70 Q50 82 80 70" stroke="#EF4444" stroke-width="6" fill="none" stroke-linecap="round"/>
+                <circle cx="50" cy="76" r="8" fill="#FBBF24" stroke="black" stroke-width="1"/>
+                <line x1="44" y1="73" x2="56" y2="73" stroke="black" stroke-width="1"/>
+                <line x1="43" y1="75" x2="57" y2="75" stroke="black" stroke-width="1"/>
+                <circle cx="50" cy="78" r="1.5" fill="black"/>
+                <line x1="50" y1="78" x2="50" y2="84" stroke="black" stroke-width="1"/>
+            </svg>
+        `;
+
+        async function startWhackAMole(level = 1) {
+            try { await initAudio(); playClickSound(); await startBgMusic(); } catch(e){}
+            
+            moleLevel = level;
+            moleHits = 0;
+            moleTargetCount = 10; 
+            isMoleGameRunning = true;
+            
+            hideAllViews();
+            document.getElementById('view-whack-a-mole').classList.remove('hidden');
+            document.getElementById('header').classList.remove('hidden');
+
+            setupMoleGrid();
+            updateMoleUI();
+            
+            setTimeout(popMole, 800);
+        }
+
+        function setupMoleGrid() {
+            const gridEl = document.getElementById('mole-grid');
+            gridEl.innerHTML = ''; 
+            
+            let holesCount = 9;
+            let colsClass = 'grid-cols-3';
+
+            if (moleLevel === 1) {
+                holesCount = 9; colsClass = 'grid-cols-3 grid-rows-3';
+                document.getElementById('mole-level-text').innerText = "1단계 (구멍 9개)";
+            } else if (moleLevel === 2) {
+                holesCount = 12; colsClass = 'grid-cols-3 grid-rows-4 sm:grid-cols-4 sm:grid-rows-3'; 
+                document.getElementById('mole-level-text').innerText = "2단계 (구멍 12개)";
+            } else if (moleLevel === 3) {
+                holesCount = 15; colsClass = 'grid-cols-3 grid-rows-5 sm:grid-cols-5 sm:grid-rows-3';
+                document.getElementById('mole-level-text').innerText = "3단계 (구멍 15개)";
+            }
+
+            // h-[65vh] 를 추가하여 화면의 2/3 정도를 차지하게 만들고, w-full 로 꽉 채웁니다.
+            gridEl.className = `grid gap-2 sm:gap-4 md:gap-6 bg-[#8B4513] p-4 md:p-6 rounded-3xl border-8 border-[#5C2E0C] shadow-[inset_0_10px_20px_rgba(0,0,0,0.5)] w-full max-w-4xl h-[65vh] mx-auto ${colsClass}`;
+
+            for (let i = 0; i < holesCount; i++) {
+                const holeWrapper = document.createElement('div');
+                // 부모 그리드 크기에 비례해서 늘어나도록 사이즈 조정 (w-full, h-full, justify-self-center, self-center)
+                holeWrapper.className = "relative w-full h-full max-w-[140px] max-h-[160px] justify-self-center self-center rounded-[40%] bg-[#3E1A04] shadow-[inset_0_15px_15px_rgba(0,0,0,0.8)] overflow-hidden cursor-pointer border-b-4 border-[#250f02]";
+                
+                const mole = document.createElement('div');
+                mole.id = `mole-${i}`;
+                mole.className = "absolute bottom-0 w-full h-[95%] transition-all duration-300 transform translate-y-full flex items-end justify-center";
+                mole.innerHTML = doraemonSvg;
+                
+                // 모바일, 데스크톱 중복 실행 방지를 위해 pointerdown 사용
+                mole.onpointerdown = (e) => { e.preventDefault(); hitMole(i); };
+
+                holeWrapper.appendChild(mole);
+                gridEl.appendChild(holeWrapper);
+            }
+        }
+
+        function updateMoleUI() {
+            document.getElementById('mole-progress-text').innerText = `${moleHits} / ${moleTargetCount}`;
+            document.getElementById('mole-progress-bar').style.width = `${(moleHits / moleTargetCount) * 100}%`;
+        }
+
+        function hitMole(index) {
+            if (!isMoleGameRunning || activeMoleHole !== index) return;
+            
+            activeMoleHole = -1; // 연타 방지
+            playClickSound();
+            moleHits++;
+            updateMoleUI();
+            
+            const moleEl = document.getElementById(`mole-${index}`);
+            moleEl.innerHTML = '<span class="text-5xl sm:text-6xl md:text-7xl mb-4 drop-shadow-lg">💥</span>';
+            moleEl.classList.add('scale-110');
+            
+            clearTimeout(moleTimer);
+            
+            if (moleHits >= moleTargetCount) {
+                // 단계 완료 시 0.4초 뒤 다음 로직 처리
+                setTimeout(handleMoleLevelClear, 400);
+            } else {
+                setTimeout(() => {
+                    // 원상 복구 및 숨기기
+                    moleEl.innerHTML = doraemonSvg;
+                    moleEl.classList.remove('scale-110');
+                    moleEl.classList.add('translate-y-full'); 
+                    
+                    // 레벨이 오를수록 다음 두더지가 더 빨리 나옵니다. (어르신 맞춤 속도로 하향 조정)
+                    const nextPopDelay = Math.max(1000, 1600 - (moleLevel * 150));
+                    setTimeout(popMole, nextPopDelay);
+                }, 300);
+            }
+        }
+
+        function popMole() {
+            if (!isMoleGameRunning) return;
+
+            // 기존에 나와있던 두더지 숨기기
+            if (activeMoleHole !== -1) {
+                const prevMole = document.getElementById(`mole-${activeMoleHole}`);
+                if (prevMole) prevMole.classList.add('translate-y-full');
+            }
+
+            const totalHoles = moleLevel === 1 ? 9 : (moleLevel === 2 ? 12 : 15);
+            let nextHole;
+            do {
+                nextHole = Math.floor(Math.random() * totalHoles);
+            } while (nextHole === activeMoleHole && totalHoles > 1); 
+            
+            activeMoleHole = nextHole;
+
+            const moleEl = document.getElementById(`mole-${activeMoleHole}`);
+            // 두더지 위로 올리기
+            if (moleEl) moleEl.classList.remove('translate-y-full'); 
+            
+            // 레벨이 오를수록 두더지가 나와있는 시간이 짧아집니다. (어르신 맞춤 속도로 하향 조정)
+            const hideDelay = Math.max(1500, 3000 - (moleLevel * 300));
+
+            clearTimeout(moleTimer);
+            moleTimer = setTimeout(() => {
+                if (isMoleGameRunning && activeMoleHole !== -1) {
+                    const activeEl = document.getElementById(`mole-${activeMoleHole}`);
+                    if (activeEl) activeEl.classList.add('translate-y-full');
+                    activeMoleHole = -1;
+                    setTimeout(popMole, 300);
+                }
+            }, hideDelay);
+        }
+
+        function handleMoleLevelClear() {
+            if (moleLevel < 3) {
+                startWhackAMole(moleLevel + 1);
+            } else {
+                isMoleGameRunning = false;
+                showWinScreen();
+            }
+        }
+
+        function clearMoleGame() {
+            isMoleGameRunning = false;
+            clearTimeout(moleTimer);
+            activeMoleHole = -1;
+        }
+
+        let dcHits = 0;
+        let dcTargetCount = 10;
+        let dcLastTapTime = 0;
+
+        async function startDoubleClick() {
+            try { await initAudio(); playClickSound(); await startBgMusic(); } catch(e){}
+            hideAllViews();
+            document.getElementById('view-double-click').classList.remove('hidden');
+            document.getElementById('header').classList.remove('hidden');
+            
+            dcHits = 0;
+            updateDcUI();
+            resetChest();
+        }
+
+        function updateDcUI() {
+            document.getElementById('dc-progress-text').innerText = `${dcHits} / ${dcTargetCount}`;
+            document.getElementById('dc-progress-bar').style.width = `${(dcHits / dcTargetCount) * 100}%`;
+        }
+
+        function resetChest() {
+            const chest = document.getElementById('dc-chest');
+            chest.innerText = '📦';
+            chest.style.transform = 'scale(1)';
+            document.getElementById('dc-hint').innerText = "상자를 빠르게 두 번(더블클릭) 눌러보세요!";
+            document.getElementById('dc-hint').classList.remove('text-purple-600');
+        }
+
+        const dcChest = document.getElementById('dc-chest');
+        // pointerdown을 사용하여 마우스/터치 환경 모두 완벽 지원
+        dcChest.addEventListener('pointerdown', (e) => {
+            e.preventDefault();
+            if (dcChest.innerText === '💎') return; // 이미 열려있는 상태 무시
+
+            const now = Date.now();
+            // 어르신들을 위해 더블클릭 판정 시간을 600ms로 아주 넉넉하게 설정
+            if (now - dcLastTapTime < 600) {
+                // 더블 클릭 성공
+                dcLastTapTime = 0;
+                handleDoubleClickSuccess();
+            } else {
+                // 첫 번째 클릭
+                dcLastTapTime = now;
+                playTypeSound();
+                
+                // 첫 클릭 시각적 피드백 (살짝 눌리는 효과)
+                dcChest.style.transform = 'scale(0.9)';
+                setTimeout(() => { 
+                    if (dcChest.innerText === '📦') dcChest.style.transform = 'scale(1)'; 
+                }, 150);
+            }
+        });
+
+        function handleDoubleClickSuccess() {
+            playClickSound();
+            dcHits++;
+            updateDcUI();
+            
+            const chest = document.getElementById('dc-chest');
+            chest.innerText = '💎'; // 반짝이는 보물 이모지
+            chest.style.transform = 'scale(1.2)';
+            
+            document.getElementById('dc-hint').innerText = "성공! 보물을 찾았습니다!";
+            document.getElementById('dc-hint').classList.add('text-purple-600');
+            
+            if (dcHits >= dcTargetCount) {
+                setTimeout(showWinScreen, 1000);
+            } else {
+                setTimeout(resetChest, 1200); // 1.2초 후 새 상자 등장
+            }
+        }
+
+        let dragHits = 0;
+        let dragTargetCount = 5;
+        let activeDragItem = null;
+        let dragOffsetX = 0;
+        let dragOffsetY = 0;
+
+        // 쓰레기로 사용할 다양한 이모지들
+        const trashEmojis = ['🧻', '🥫', '🍌', '📰', '🧦', '🐟'];
+
+        async function startDragPractice() {
+            try { await initAudio(); playClickSound(); await startBgMusic(); } catch(e){}
+            hideAllViews();
+            document.getElementById('view-drag-drop').classList.remove('hidden');
+            document.getElementById('header').classList.remove('hidden');
+            
+            dragHits = 0;
+            updateDragUI();
+            spawnDragItem();
+        }
+
+        function updateDragUI() {
+            document.getElementById('drag-progress-text').innerText = `${dragHits} / ${dragTargetCount}`;
+            document.getElementById('drag-progress-bar').style.width = `${(dragHits / dragTargetCount) * 100}%`;
+        }
+
+        function spawnDragItem() {
+            const gameArea = document.getElementById('drag-game-area');
+            document.querySelectorAll('.drag-item').forEach(el => el.remove());
+            
+            const item = document.createElement('div');
+            item.className = 'drag-item absolute text-[70px] md:text-[90px] cursor-grab touch-none select-none drop-shadow-md pop-in z-20 flex items-center justify-center w-32 h-32';
+            item.innerText = trashEmojis[Math.floor(Math.random() * trashEmojis.length)];
+            
+            // 휴지통(하단)과 겹치지 않게 위쪽 무작위 위치에 배치
+            const maxX = gameArea.clientWidth - 120;
+            const maxY = (gameArea.clientHeight / 2) - 100; 
+            
+            item.style.left = `${Math.max(20, Math.floor(Math.random() * maxX))}px`;
+            item.style.top = `${Math.max(20, Math.floor(Math.random() * maxY))}px`;
+            
+            item.addEventListener('pointerdown', handleDragStart);
+            gameArea.appendChild(item);
+        }
+
+        function handleDragStart(e) {
+            e.preventDefault();
+            activeDragItem = e.currentTarget;
+            activeDragItem.classList.remove('cursor-grab');
+            activeDragItem.classList.add('cursor-grabbing', 'scale-110', 'z-50');
+            playTypeSound();
+            
+            const rect = activeDragItem.getBoundingClientRect();
+            // 뷰포트 기준 포인터 위치 - 요소의 뷰포트 기준 좌상단 위치 = 마우스가 잡은 위치 오프셋
+            dragOffsetX = e.clientX - rect.left;
+            dragOffsetY = e.clientY - rect.top;
+        }
+
+        // document 레벨 이벤트 리스너로 화면 밖으로 드래그할 때도 마우스를 놓치지 않게 처리
+        document.addEventListener('pointermove', (e) => {
+            if (!activeDragItem) return;
+            e.preventDefault(); // 모바일 화면 스크롤 방지
+            
+            const gameArea = document.getElementById('drag-game-area');
+            const areaRect = gameArea.getBoundingClientRect();
+            
+            // 게임 영역 기준 상대 좌표 계산
+            let newLeft = e.clientX - areaRect.left - dragOffsetX;
+            let newTop = e.clientY - areaRect.top - dragOffsetY;
+            
+            activeDragItem.style.left = `${newLeft}px`;
+            activeDragItem.style.top = `${newTop}px`;
+        }, { passive: false });
+
+        document.addEventListener('pointerup', (e) => {
+            if (!activeDragItem) return;
+            
+            const bin = document.getElementById('drag-bin');
+            const itemRect = activeDragItem.getBoundingClientRect();
+            const binRect = bin.getBoundingClientRect();
+            
+            // 중심점 기준 충돌 판정 (휴지통에 절반 이상 들어갔을 때 인정)
+            const itemCenterX = itemRect.left + itemRect.width / 2;
+            const itemCenterY = itemRect.top + itemRect.height / 2;
+            
+            const isOverlapping = (
+                itemCenterX > binRect.left && 
+                itemCenterX < binRect.right && 
+                itemCenterY > binRect.top && 
+                itemCenterY < binRect.bottom
+            );
+            
+            if (isOverlapping) {
+                // 휴지통에 넣기 성공!
+                playClickSound();
+                bin.classList.add('scale-110'); // 휴지통 꿀렁 효과
+                setTimeout(() => bin.classList.remove('scale-110'), 200);
+                
+                activeDragItem.remove();
+                activeDragItem = null;
+                
+                dragHits++;
+                updateDragUI();
+                
+                if (dragHits >= dragTargetCount) {
+                    setTimeout(showWinScreen, 500);
+                } else {
+                    setTimeout(spawnDragItem, 400); // 다음 쓰레기 등장
+                }
+            } else {
+                // 실패시 다시 잡을 수 있게 상태 복구 (떨어뜨린 자리에 그대로 둠)
+                activeDragItem.classList.remove('cursor-grabbing', 'scale-110', 'z-50');
+                activeDragItem.classList.add('cursor-grab');
+                playErrorSound();
+                activeDragItem = null;
+            }
+        });
+
+        const mouseCharacters = [
+            `<svg viewBox="0 0 100 100" class="w-24 h-24 md:w-32 md:h-32 drop-shadow-xl"><defs><radialGradient id="sunGrad" cx="35%" cy="30%" r="75%"><stop offset="0%" stop-color="#FFF59D" /><stop offset="100%" stop-color="#FBBF24" /></radialGradient></defs><g fill="#FBBF24"><rect x="46" y="2" width="8" height="16" rx="4"/><rect x="46" y="82" width="8" height="16" rx="4"/><rect x="2" y="46" width="16" height="8" rx="4"/><rect x="82" y="46" width="16" height="8" rx="4"/><rect x="14" y="14" width="8" height="16" rx="4" transform="rotate(45 18 22)"/><rect x="78" y="14" width="8" height="16" rx="4" transform="rotate(-45 82 22)"/><rect x="14" y="70" width="8" height="16" rx="4" transform="rotate(-45 18 78)"/><rect x="78" y="70" width="8" height="16" rx="4" transform="rotate(45 82 78)"/></g><circle cx="50" cy="50" r="32" fill="url(#sunGrad)"/><circle cx="38" cy="46" r="5" fill="#7C4A03"/><circle cx="62" cy="46" r="5" fill="#7C4A03"/><circle cx="36" cy="44" r="1.8" fill="white"/><circle cx="60" cy="44" r="1.8" fill="white"/><path d="M38 58 Q50 70 62 58" stroke="#7C4A03" stroke-width="4" fill="none" stroke-linecap="round"/><circle cx="27" cy="55" r="5" fill="#FCA5A5" opacity="0.6"/><circle cx="73" cy="55" r="5" fill="#FCA5A5" opacity="0.6"/></svg>`,
+            `<svg viewBox="0 0 100 100" class="w-24 h-24 md:w-32 md:h-32 drop-shadow-xl"><defs><linearGradient id="cloudGrad" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#E9D5FF" /><stop offset="100%" stop-color="#C4B5FD" /></linearGradient></defs><ellipse cx="34" cy="18" rx="8" ry="20" fill="url(#cloudGrad)" transform="rotate(-15 34 18)"/><ellipse cx="66" cy="18" rx="8" ry="20" fill="url(#cloudGrad)" transform="rotate(15 66 18)"/><ellipse cx="34" cy="20" rx="4" ry="12" fill="#FBCFE8" transform="rotate(-15 34 20)"/><ellipse cx="66" cy="20" rx="4" ry="12" fill="#FBCFE8" transform="rotate(15 66 20)"/><ellipse cx="50" cy="55" rx="38" ry="32" fill="url(#cloudGrad)"/><ellipse cx="38" cy="52" rx="4.5" ry="6" fill="#5B21B6"/><ellipse cx="62" cy="52" rx="4.5" ry="6" fill="#5B21B6"/><circle cx="36.5" cy="49" r="1.6" fill="white"/><circle cx="60.5" cy="49" r="1.6" fill="white"/><path d="M46 62 Q50 66 54 62" stroke="#5B21B6" stroke-width="3" fill="none" stroke-linecap="round"/><circle cx="27" cy="60" r="5" fill="#FBCFE8" opacity="0.8"/><circle cx="73" cy="60" r="5" fill="#FBCFE8" opacity="0.8"/></svg>`,
+            `<svg viewBox="0 0 100 100" class="w-24 h-24 md:w-32 md:h-32 drop-shadow-xl"><defs><linearGradient id="frogGrad" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#86EFAC" /><stop offset="100%" stop-color="#22C55E" /></linearGradient></defs><line x1="42" y1="18" x2="38" y2="4" stroke="#16A34A" stroke-width="3" stroke-linecap="round"/><line x1="58" y1="18" x2="62" y2="4" stroke="#16A34A" stroke-width="3" stroke-linecap="round"/><circle cx="38" cy="4" r="4" fill="#FDE047"/><circle cx="62" cy="4" r="4" fill="#FDE047"/><circle cx="50" cy="52" r="34" fill="url(#frogGrad)"/><circle cx="33" cy="36" r="11" fill="white"/><circle cx="67" cy="36" r="11" fill="white"/><circle cx="33" cy="37" r="6" fill="#14532D"/><circle cx="67" cy="37" r="6" fill="#14532D"/><circle cx="31" cy="35" r="2" fill="white"/><circle cx="65" cy="35" r="2" fill="white"/><path d="M36 62 Q50 74 64 62" stroke="#14532D" stroke-width="4" fill="none" stroke-linecap="round"/><circle cx="24" cy="58" r="5" fill="#FCA5A5" opacity="0.6"/><circle cx="76" cy="58" r="5" fill="#FCA5A5" opacity="0.6"/></svg>`
+        ];
+
+        async function startMousePractice() {
+            try { await initAudio(); playClickSound(); await startBgMusic(); } catch(e){}
+            hideAllViews();
+            document.getElementById('view-mouse').classList.remove('hidden');
+            document.getElementById('header').classList.remove('hidden');
+
+            mouseHits = 0; mouseTargetCount = 15; 
+            updateMouseUI(); spawnCharacter();
+        }
+
+        function updateMouseUI() {
+            document.getElementById('mouse-progress-text').innerText = `${mouseHits} / ${mouseTargetCount}`;
+            document.getElementById('mouse-progress-bar').style.width = `${(mouseHits / mouseTargetCount) * 100}%`;
+        }
+
+        function spawnCharacter() {
+            clearTimeout(mouseTimer);
+            const gameArea = document.getElementById('mouse-game-area');
+            gameArea.innerHTML = ""; 
+
+            if (mouseHits >= mouseTargetCount) { showWinScreen(); return; }
+
+            const character = document.createElement('div');
+            character.innerHTML = mouseCharacters[Math.floor(Math.random() * mouseCharacters.length)];
+            character.className = "absolute cursor-pointer pop-in hover:scale-110 transition-transform flex items-center justify-center p-4";
+            
+            const maxX = gameArea.clientWidth - 150;
+            const maxY = gameArea.clientHeight - 150;
+            character.style.left = `${Math.max(0, Math.floor(Math.random() * maxX))}px`;
+            character.style.top = `${Math.max(0, Math.floor(Math.random() * maxY))}px`;
+
+            // 중복 클릭 방지를 위해 onpointerdown 사용
+            character.onpointerdown = function(e) {
+                e.preventDefault(); 
+                this.onpointerdown = null; // 다중 클릭 무효화
+                
+                playClickSound(); mouseHits++; updateMouseUI();
+                this.innerHTML = '<span class="text-7xl md:text-8xl drop-shadow-md">✨</span>';
+                this.classList.add('scale-150');
+                
+                clearTimeout(mouseTimer);
+                setTimeout(spawnCharacter, 400); 
+            };
+
+            gameArea.appendChild(character);
+            mouseTimer = setTimeout(() => {
+                character.style.opacity = '0';
+                setTimeout(spawnCharacter, 500);
+            }, 3000); 
+        }
+
+        function showWinScreen() {
+            clearTimeout(mouseTimer); clearMoleGame(); stopBgMusic(); playWinSound(); 
+            document.getElementById('win-message').innerText = `${userName}님, 5년 젊어지셨습니다!`;
+
+            const detailEl = document.getElementById('win-detail');
+            if (mistakeSummaryCount > 0) {
+                detailEl.innerText = `틀렸던 단어 ${mistakeSummaryCount}개도 다시 연습해서 완벽하게 해내셨어요!`;
+                detailEl.classList.remove('hidden');
+            } else {
+                detailEl.classList.add('hidden');
+            }
+
+            document.getElementById('header').classList.add('hidden');
+            document.getElementById('view-win').classList.remove('hidden');
+        }
+
+        // 창 크기가 바뀌어도(태블릿 회전 등) 캐릭터가 화면 밖으로 밀려나지 않게 위치 보정
+        window.addEventListener('resize', () => {
+            const mouseView = document.getElementById('view-mouse');
+            if (mouseView && !mouseView.classList.contains('hidden')) {
+                const gameArea = document.getElementById('mouse-game-area');
+                const char = gameArea ? gameArea.querySelector('div.absolute') : null;
+                if (char) {
+                    const maxX = Math.max(0, gameArea.clientWidth - char.offsetWidth);
+                    const maxY = Math.max(0, gameArea.clientHeight - char.offsetHeight);
+                    char.style.left = `${Math.min(parseFloat(char.style.left) || 0, maxX)}px`;
+                    char.style.top = `${Math.min(parseFloat(char.style.top) || 0, maxY)}px`;
+                }
+            }
+        });
+
+        // ===== 오른쪽 클릭 연습 =====
+        function updateRcUI() {
+            document.getElementById('rc-progress-text').innerText = `${rcHits} / ${rcTargetCount}`;
+            document.getElementById('rc-progress-bar').style.width = `${(rcHits / rcTargetCount) * 100}%`;
+        }
+
+        async function startRightClickPractice() {
+            try { await initAudio(); playClickSound(); await startBgMusic(); } catch(e){}
+            hideAllViews();
+            document.getElementById('view-right-click').classList.remove('hidden');
+            document.getElementById('header').classList.remove('hidden');
+            rcHits = 0;
+            updateRcUI();
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const rcTargetEl = document.getElementById('rc-target');
+            if (rcTargetEl) {
+                rcTargetEl.addEventListener('contextmenu', (e) => {
+                    e.preventDefault();
+                    if (document.getElementById('view-right-click').classList.contains('hidden')) return;
+                    if (rcHits >= rcTargetCount) return;
+                    playClickSound();
+                    rcHits++;
+                    updateRcUI();
+                    rcTargetEl.classList.add('scale-125');
+                    setTimeout(() => rcTargetEl.classList.remove('scale-125'), 200);
+                    if (rcHits >= rcTargetCount) {
+                        setTimeout(showWinScreen, 500);
+                    }
+                });
+            }
+        });
+
+        // ===== 화면 스크롤 연습 =====
+        function updateScrollUI() {
+            document.getElementById('scroll-progress-text').innerText = `${scrollHits} / ${scrollTargetCount}`;
+            document.getElementById('scroll-progress-bar').style.width = `${(scrollHits / scrollTargetCount) * 100}%`;
+        }
+
+        async function startScrollPractice() {
+            try { await initAudio(); playClickSound(); await startBgMusic(); } catch(e){}
+            hideAllViews();
+            document.getElementById('view-scroll').classList.remove('hidden');
+            document.getElementById('header').classList.remove('hidden');
+            scrollHits = 0;
+            updateScrollUI();
+            spawnScrollTarget();
+        }
+
+        function spawnScrollTarget() {
+            const contentEl = document.getElementById('scroll-content');
+            const scrollAreaEl = document.getElementById('scroll-area');
+            contentEl.innerHTML = "";
+            scrollAreaEl.scrollTop = 0;
+
+            const spacer = document.createElement('div');
+            spacer.style.height = '450px';
+            spacer.className = 'w-full flex items-center justify-center text-2xl md:text-3xl text-teal-300 shrink-0';
+            spacer.innerText = '아래로 내려가 보세요 ⬇️';
+            contentEl.appendChild(spacer);
+
+            const target = document.createElement('div');
+            target.className = 'text-[100px] cursor-pointer pop-in select-none touch-manipulation mb-24 shrink-0';
+            target.innerText = '🎁';
+            target.onpointerdown = (e) => {
+                e.preventDefault();
+                target.onpointerdown = null;
+                playClickSound();
+                target.innerText = '✨';
+                scrollHits++;
+                updateScrollUI();
+                if (scrollHits >= scrollTargetCount) {
+                    setTimeout(showWinScreen, 600);
+                } else {
+                    setTimeout(spawnScrollTarget, 600);
+                }
+            };
+            contentEl.appendChild(target);
+        }
+    </script>
 </body>
 </html>
+```eof
