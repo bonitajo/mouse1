@@ -24,6 +24,7 @@
 - GitHub Pages 배포 성공과 실제 공개 주소 HTTP 200 확인.
 - 공개 주소에서 일반 퍼즐 6조각을 모두 끌어 맞춰 60점 확인. 완성 후 다음 사진 전환과 두 사진의 원본 보기 로딩 확인.
 - 공개 주소의 검증 과정에서 리소스 요청 실패와 JavaScript 예외 없음.
+- 기존 접속 주소에서도 HTTP 200, 일반 퍼즐 6조각 완성과 사진 로딩을 확인. 기존 게임 보관 주소도 HTTP 200 확인.
 
 ## 아직 확인하지 않은 항목
 
@@ -41,8 +42,10 @@
 
 ## 배포 위치
 
-테스트 주소: https://bonitajo.github.io/mouse1/mouse-play-2/
+기본 접속 주소: https://bonitajo.github.io/mouse1/
+
+별도 테스트 주소: https://bonitajo.github.io/mouse1/mouse-play-2/
 
 소스: https://github.com/bonitajo/mouse1/tree/main/mouse-play-2
 
-기존 사이트의 루트 `index.html`은 변경하지 않았습니다.
+처음에는 기존 첫 화면을 유지한 별도 경로로 배포했습니다. 이후 기존 주소 사용 요청에 따라 루트 첫 화면도 새 게임으로 연결했습니다. 기존 게임은 `https://bonitajo.github.io/mouse1/original-game.html`에 보관했습니다.
