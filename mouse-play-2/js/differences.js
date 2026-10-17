@@ -6,6 +6,7 @@
   const zoom=document.createElement('button');zoom.textContent='그림 크게';zoom.setAttribute('aria-pressed','false');toolbar.append(progress,zoom);host.before(toolbar);
   const needed=level==='easy'?3:5;let viewWidth=1200,viewHeight=600;let round=-1,changes=[],found=new Set(),complete=false,large=false,stacked=false,panels=[],message='';
   const spots=[{id:'sun',x:458,y:65,r:49},{id:'roof',x:165,y:142,r:70},{id:'window',x:167,y:258,r:46},{id:'fruit',x:420,y:230,r:65},{id:'flowers',x:88,y:352,r:47},{id:'pot',x:266,y:355,r:43}];
+  if(level!=='easy')spots.push({id:'cloud',x:100,y:48,r:39},{id:'bird',x:315,y:65,r:36},{id:'flag',x:302,y:153,r:33},{id:'kite',x:302,y:245,r:35},{id:'mushroom',x:170,y:365,r:33},{id:'bench',x:445,y:367,r:51});
   const themes=[{name:'햇살 가득한 정원',sky:'#e5f3fc',grass:'#cbe4ac',roof:'#b65335',wall:'#fff1cf',leaves:'#437d51'}, {name:'가을날의 작은 집',sky:'#edf4ff',grass:'#e6d9ac',roof:'#315f89',wall:'#fff6df',leaves:'#aa6433'}, {name:'바닷가 꽃집',sky:'#dff3fb',grass:'#f1e3bb',roof:'#754d88',wall:'#fff8ee',leaves:'#477b69'}];
   function layout(){stacked=large||host.clientWidth<760;viewWidth=stacked?600:1200;viewHeight=stacked?1120:600;const density=Math.max(1,Math.min(3,(window.devicePixelRatio||1)*host.clientWidth/viewWidth));canvas.width=Math.round(viewWidth*density);canvas.height=Math.round(viewHeight*density);canvas.dataset.logicalWidth=String(viewWidth);ctx.setTransform(density,0,0,density,0,0);host.classList.add('difference-arena');host.classList.toggle('difference-stacked',stacked);panels=stacked?[{x:25,y:75},{x:25,y:635}]:[{x:25,y:95},{x:625,y:95}];draw()}
   function status(){progress.textContent=`찾은 곳 ${found.size} / ${needed} · ${themes[round%themes.length].name}`}
@@ -31,6 +32,16 @@
     // 주둥이는 없을 때와 있을 때의 실루엣 차이를 크게 준다.
     ctx.strokeStyle='#284b50';ctx.lineWidth=4;ctx.beginPath();ctx.ellipse(280,337,20,23,0,0,Math.PI*2);ctx.stroke();
     rect(235,336,55,46,'#65b9c4',7);if(!different('pot')){ctx.fillStyle='#65b9c4';ctx.beginPath();ctx.moveTo(236,351);ctx.lineTo(210,329);ctx.lineTo(204,338);ctx.lineTo(237,375);ctx.closePath();ctx.fill();ctx.stroke()}
+    if(level!=='easy'){
+      // 중급은 같은 물건도 함께 늘려 12개 요소 중 5곳을 비교한다.
+      function cloud(x,y,scale=1){ctx.save();ctx.translate(x,y);ctx.scale(scale,scale);ctx.beginPath();ctx.moveTo(-35,8);ctx.bezierCurveTo(-48,8,-46,-14,-26,-15);ctx.bezierCurveTo(-28,-39,15,-39,18,-16);ctx.bezierCurveTo(46,-24,48,10,30,12);ctx.closePath();ctx.fillStyle='#fff';ctx.fill();ctx.stroke();ctx.restore()}
+      cloud(100,38,.85);if(different('cloud'))cloud(100,72,.65);
+      ctx.save();ctx.translate(315,65);if(different('bird'))ctx.scale(-1,1);ellipse(0,0,24,15,'#527fb3');ctx.fillStyle='#e4f1fc';ctx.beginPath();ctx.moveTo(-9,-1);ctx.lineTo(6,-23);ctx.lineTo(12,5);ctx.closePath();ctx.fill();ctx.stroke();ctx.fillStyle='#f6bd53';ctx.beginPath();ctx.moveTo(21,-5);ctx.lineTo(35,1);ctx.lineTo(21,6);ctx.closePath();ctx.fill();ctx.stroke();ellipse(13,-6,3,3,'#213e50',false);ctx.restore();
+      line(285,122,285,185);ctx.fillStyle='#dc7453';ctx.beginPath();ctx.moveTo(287,123);ctx.lineTo(326,123);if(different('flag'))ctx.lineTo(287,156);else{ctx.lineTo(326,156);ctx.lineTo(287,156)}ctx.closePath();ctx.fill();ctx.stroke();
+      ctx.fillStyle='#f4c956';ctx.beginPath();if(different('kite'))ctx.ellipse(302,240,25,29,0,0,Math.PI*2);else{ctx.moveTo(302,211);ctx.lineTo(328,240);ctx.lineTo(302,269);ctx.lineTo(276,240);ctx.closePath()}ctx.fill();ctx.stroke();line(302,214,302,267);line(278,240,326,240);ctx.beginPath();ctx.moveTo(302,269);ctx.quadraticCurveTo(321,280,303,291);ctx.stroke();
+      rect(163,361,14,30,'#fff3d9',4);ctx.fillStyle='#ce6859';ctx.beginPath();ctx.moveTo(143,365);if(different('mushroom')){ctx.lineTo(170,335);ctx.lineTo(197,365)}else ctx.bezierCurveTo(143,326,197,326,197,365);ctx.closePath();ctx.fill();ctx.stroke();
+      if(!different('bench')){rect(403,336,84,15,'#b58554',3);line(411,349,411,371);line(479,349,479,371)}rect(399,365,92,13,'#c89764',3);line(411,378,411,399);line(479,378,479,399);
+    }
     for(const id of found){const spot=spots.find(s=>s.id===id);ctx.strokeStyle='#fff';ctx.lineWidth=9;ctx.beginPath();ctx.arc(spot.x,spot.y,spot.r,0,Math.PI*2);ctx.stroke();ctx.strokeStyle='#146c4d';ctx.lineWidth=5;ctx.stroke();M.text(ctx,'✓',spot.x+spot.r*.65,spot.y-spot.r*.65,32,'#125e43')}
     ctx.restore();ctx.strokeStyle='#6a929b';ctx.lineWidth=3;ctx.strokeRect(panel.x,panel.y,550,430)
   }
